@@ -43,12 +43,13 @@ describe("JiraApiService", () => {
 
   const baseUrl = "https://your-domain.atlassian.net";
   const apiToken = "test-token";
-  const email = "user@domain.net";
+  // const email = "user@domain.net";
+  const username = "user01"
   let service: JiraApiService;
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
-    service = new JiraApiService(baseUrl, email, apiToken);
+    service = new JiraApiService(baseUrl, username, apiToken);
     originalFetch = global.fetch;
   });
 
@@ -67,7 +68,7 @@ describe("JiraApiService", () => {
         expect(url.startsWith(baseUrl)).toBe(true);
         const headers = init?.headers as Headers;
         expect(headers.get("Authorization")).toBe(
-          `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`,
+          `Basic ${Buffer.from(`${username}:${apiToken}`).toString("base64")}`,
         );
         expect(headers.get("Content-Type")).toBe("application/json");
         return new Response(JSON.stringify({ issues: [] }));

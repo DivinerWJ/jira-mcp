@@ -15,6 +15,10 @@ export interface CleanJiraIssue {
   created: string | undefined;
   updated: string | undefined;
   description: string;
+  acceptanceCriteria?: string;
+  storyPoints?: number;
+  functionPoints?: number;
+  developers?: string[];
   comments?: CleanComment[];
   parent?: {
     id: string;
@@ -35,7 +39,8 @@ export interface CleanJiraIssue {
     key: string;
     summary?: string;
     type: "mention" | "link";
-    relationship?: string; // For formal issue links e.g. "blocks", "relates to"
+    // For formal issue links e.g. "blocks", "relates to"
+    relationship?: string;
     source: "description" | "comment";
     commentId?: string;
   }[];
@@ -83,3 +88,35 @@ export interface AddCommentResponse {
   updated: string;
   body: string; // Return plain text for simplicity
 }
+
+export interface JiraBaseConfig {
+  JIRA_API_TOKEN: string;
+  JIRA_BASE_URL: string;
+  JIRA_USERNAME: string;
+  JIRA_TYPE: "cloud" | "server";
+}
+
+export interface EnvJiraCustomFields {
+  //  验收标准
+  ACCEPTANCE_CRITERIA_FIELD?: string;
+  //  故事点
+  STORY_POINTS_FIELD?: string;
+  //  功能点
+  FUNCTION_POINTS_FIELD?: string;
+  //  开发者
+  DEVELOPERS_FIELD?: string;
+}
+
+// 组合类型
+export type EnvJiraConfig = JiraBaseConfig & EnvJiraCustomFields;
+
+export interface CustomFieldConfig {
+  // 验收标准
+  acceptanceCriteria: string;
+  // 故事点
+  storyPoints: string;
+  // 功能点
+  functionPoints: string;
+  // 开发人员
+  developers: string;
+};

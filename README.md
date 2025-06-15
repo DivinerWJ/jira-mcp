@@ -1,5 +1,7 @@
 # JIRA MCP Server
 
+基于 [cosmix/jira-mcp](https://github.com/cosmix/jira-mcp)（MIT License）二次开发，新增功能。
+
 A Model Context Protocol (MCP) server implementation that provides access to JIRA data with relationship tracking, optimized data payloads, and data cleaning for AI context windows.
 
 ℹ️ There is a separate MCP server [for Confluence](https://github.com/cosmix/confluence-mcp)
@@ -40,7 +42,7 @@ The server will automatically use the correct API version and authentication met
 ```bash
 JIRA_API_TOKEN=your_api_token
 JIRA_BASE_URL=your_jira_instance_url  # e.g., https://your-domain.atlassian.net
-JIRA_USER_EMAIL=your_email
+JIRA_USERNAME=your_username # or your email
 JIRA_TYPE=cloud   # or 'server' for Jira Server/Data Center (optional, defaults to 'cloud')
 ```
 
@@ -90,7 +92,7 @@ Add the following configuration under the `mcpServers` object:
       "env": {
         "JIRA_API_TOKEN": "your_api_token",
         "JIRA_BASE_URL": "your_jira_instance_url",
-        "JIRA_USER_EMAIL": "your_email",
+        "JIRA_USERNAME": "your_username",
         "JIRA_TYPE": "cloud"
       }
     }

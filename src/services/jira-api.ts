@@ -5,15 +5,26 @@ import {
   CleanJiraIssue,
   JiraCommentResponse,
   SearchIssuesResponse,
+  CustomFieldConfig,
 } from "../types/jira.js";
+
+
 
 export class JiraApiService {
   protected baseUrl: string;
   protected headers: Headers;
+  // 定义可配置字段及对应缺省值
+  private static readonly CUSTOM_FIELD: CustomFieldConfig = {
+    acceptanceCriteria: process.env.ACCEPTANCE_CRITERIA_FIELD || 'customfield_10555',
+    storyPoints: process.env.STORY_POINTS_FIELD || 'customfield_10006',
+    functionPoints: process.env.FUNCTION_POINTS_FIELD || 'customfield_11875',
+    developers: process.env.DEVELOPERS_FIELD || 'customfield_11637'
+  };
 
-  constructor(baseUrl: string, email: string, apiToken: string) {
+
+  constructor(baseUrl: string, username: string, apiToken: string) {
     this.baseUrl = baseUrl;
-    const auth = Buffer.from(`${email}:${apiToken}`).toString("base64");
+    const auth = Buffer.from(`${username}:${apiToken}`).toString("base64");
     this.headers = new Headers({
       Authorization: `Basic ${auth}`,
       Accept: "application/json",
@@ -23,13 +34,13 @@ export class JiraApiService {
 
   protected async handleFetchError(
     response: Response,
+    responseBody: any,
     url?: string
   ): Promise<never> {
     if (!response.ok) {
       let message = response.statusText;
-      let errorData = {};
+      let errorData = responseBody;
       try {
-        errorData = await response.json();
 
         if (
           Array.isArray((errorData as any).errorMessages) &&
@@ -38,6 +49,10 @@ export class JiraApiService {
           message = (errorData as any).errorMessages.join("; ");
         } else if ((errorData as any).message) {
           message = (errorData as any).message;
+          // 判断是否是对象
+        } else if (typeof (errorData as any).errors === 'object') {
+          // 将对象按照`key: value; key: value`形式输出字符串
+          message = Object.entries((errorData as any).errors).map(([key, value]) => `${key}: ${value}`).join('; ');
         } else if ((errorData as any).errorMessage) {
           message = (errorData as any).errorMessage;
         }
@@ -152,7 +167,7 @@ export class JiraApiService {
   protected cleanIssue(issue: any): CleanJiraIssue {
     const description = issue.fields?.description?.content
       ? this.extractTextContent(issue.fields.description.content)
-      : "";
+      : issue.fields?.description || "";
 
     const cleanedIssue: CleanJiraIssue = {
       id: issue.id,
@@ -226,12 +241,20 @@ export class JiraApiService {
       ...init,
       headers: this.headers,
     });
+    const responseBody = await response.json();
 
     if (!response.ok) {
-      await this.handleFetchError(response, url);
+      try {
+        await this.handleFetchError(response, responseBody, url);
+      } catch (e: any) {
+        //TODO handle the exception
+        console.error("Fetch Error Details:", e.message);
+        console.error("Request Body:", init);
+        console.error("Response Body:", responseBody);
+      }
     }
 
-    return response.json();
+    return responseBody;
   }
 
   async searchIssues(searchString: string): Promise<SearchIssuesResponse> {
@@ -278,6 +301,7 @@ export class JiraApiService {
         "subtasks",
         "customfield_10014",
         "issuelinks",
+        ...Object.values(JiraApiService.CUSTOM_FIELD),
       ].join(","),
       expand: "names,renderedFields",
     });
@@ -324,6 +348,7 @@ export class JiraApiService {
         "subtasks",
         "customfield_10014",
         "issuelinks",
+        ...Object.values(JiraApiService.CUSTOM_FIELD),
       ].join(","),
       expand: "names,renderedFields",
     });
@@ -343,6 +368,13 @@ export class JiraApiService {
     }
 
     const issue = this.cleanIssue(issueData);
+    
+    // 添加自定义字段到返回结果
+    issue.acceptanceCriteria = issueData.fields?.[JiraApiService.CUSTOM_FIELD.acceptanceCriteria];
+    issue.storyPoints = issueData.fields?.[JiraApiService.CUSTOM_FIELD.storyPoints];
+    issue.functionPoints = issueData.fields?.[JiraApiService.CUSTOM_FIELD.functionPoints];
+    issue.developers = issueData.fields?.[JiraApiService.CUSTOM_FIELD.developers];
+    
     const comments = commentsData.comments.map((comment: any) =>
       this.cleanComment(comment)
     );
@@ -375,6 +407,13 @@ export class JiraApiService {
     description?: string,
     fields?: Record<string, any>
   ): Promise<{ id: string; key: string }> {
+    const {
+      acceptanceCriteria,
+      storyPoints,
+      functionPoints,
+      developers,
+      ...otherFields
+    } = fields || {};
     const payload = {
       fields: {
         project: {
@@ -385,7 +424,11 @@ export class JiraApiService {
           name: issueType,
         },
         ...(description && { description }),
-        ...fields,
+        ...(acceptanceCriteria && { [JiraApiService.CUSTOM_FIELD.acceptanceCriteria]: acceptanceCriteria }),
+        ...(storyPoints && { [JiraApiService.CUSTOM_FIELD.storyPoints]: storyPoints }),
+        ...(functionPoints && { [JiraApiService.CUSTOM_FIELD.functionPoints]: functionPoints }),
+        ...(developers && { [JiraApiService.CUSTOM_FIELD.developers]: developers }),
+        ...otherFields,
       },
     };
 
@@ -476,11 +519,11 @@ export class JiraApiService {
       }
     );
 
-    if (!response.ok) {
-      await this.handleFetchError(response);
-    }
-
     const data = await response.json();
+
+    if (!response.ok) {
+      await this.handleFetchError(response, data);
+    }
 
     const attachment = data[0];
     return {

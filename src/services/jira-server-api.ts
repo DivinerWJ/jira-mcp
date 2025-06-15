@@ -3,10 +3,10 @@
 import { JiraApiService } from "./jira-api.js";
 
 export class JiraServerApiService extends JiraApiService {
-  constructor(baseUrl: string, email: string, apiToken: string) {
+  constructor(baseUrl: string, username: string, apiToken: string) {
     // For Jira Server, authentication is usually Basic Auth (username/password or API token)
     // The parent constructor works for most cases, but you may need to override headers or endpoints
-    super(baseUrl, email, apiToken);
+    super(baseUrl, username, apiToken);
   }
 
   // Example: Override fetchJson to use /rest/api/2/ instead of /rest/api/3/

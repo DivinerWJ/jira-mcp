@@ -4,7 +4,7 @@ build/
 dist/
 coverage/
 *.log
-.env
+.env.local
 *.tsbuildinfo
 
 # OS generated files #
@@ -16,3 +16,4 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db
+.history
