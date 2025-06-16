@@ -9,7 +9,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
-import { getJiraConfig } from './utils/env-loader.ts';
 
 import { JiraBaseConfig, EnvJiraConfig } from "./types/jira.ts";
 
@@ -26,7 +25,12 @@ export class JiraServer {
   
   constructor() {
     // 使用环境变量重载工具获取最新配置
-    this.jiraConfig = getJiraConfig();
+    this.jiraConfig = {
+      JIRA_BASE_URL: process.env.JIRA_BASE_URL,
+      JIRA_USERNAME: process.env.JIRA_USERNAME,
+      JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+      JIRA_TYPE: process.env.JIRA_TYPE,
+    };
     console.log(`Jira API 初始化: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
 
     this.server = new Server(
@@ -64,12 +68,13 @@ export class JiraServer {
     });
   }
 
-  
-  // 重新加载配置方法
-  public reloadConfig(): void {
-    const jiraConfig = getJiraConfig();
-    this.jiraConfig = jiraConfig;
-    console.log(`Jira API 配置已重新加载: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
+  protected setJiraConfig(config: JiraBaseConfig): JiraBaseConfig {
+    this.jiraConfig = config;
+    return this.jiraConfig;
+  }
+
+  protected getJiraConfig(): JiraBaseConfig {
+    return this.jiraConfig;
   }
 
   private setupToolHandlers() {

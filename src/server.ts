@@ -3,7 +3,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express, { Request, Response } from "express";
 import { IncomingMessage, ServerResponse } from "http";
 import { JiraServer } from "./cli.ts";
-import { reloadEnv } from "./utils/env-loader.ts";
+import { reloadEnv, getJiraConfig } from "./utils/env-loader.ts";
 
 const HTTP_PORT = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 3000;
 
@@ -15,9 +15,16 @@ class JiraHttpServer extends JiraServer {
   }
   async run() {
     if (process.env.NODE_ENV === 'development') {
-    console.log(`🌐 Starting HTTP server on port ${HTTP_PORT}`);
-    await this.startHttpServer(HTTP_PORT);
+      console.log(`🌐 Starting HTTP server on port ${HTTP_PORT}`);
+      await this.startHttpServer(HTTP_PORT);
+    }
   }
+
+  // 重新加载配置方法
+  protected reloadConfig(): void {
+    const jiraConfig = getJiraConfig();
+    const config = this.setJiraConfig(jiraConfig);
+    console.log(`Jira API 配置已重新加载: ${config.JIRA_BASE_URL} (${config.JIRA_USERNAME})`);
   }
 
   async startHttpServer(port: number): Promise<void> {
@@ -31,17 +38,17 @@ class JiraHttpServer extends JiraServer {
       try {
         reloadEnv();
         this.reloadConfig();
-        res.status(200).json({ 
-          status: "ok", 
+        res.status(200).json({
+          status: "ok",
           message: "配置已重新加载",
-          timestamp: new Date().toISOString() 
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
         console.error("重新加载配置失败:", error);
-        res.status(500).json({ 
-          status: "error", 
+        res.status(500).json({
+          status: "error",
           message: `重新加载配置失败: ${error}`,
-          timestamp: new Date().toISOString() 
+          timestamp: new Date().toISOString()
         });
       }
     });
