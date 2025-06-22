@@ -14,7 +14,7 @@ import { JiraBaseConfig, EnvJiraConfig } from "./types/jira.ts";
 
 
 declare module "bun" {
-  interface Env extends EnvJiraConfig {}
+  interface Env extends EnvJiraConfig { }
 }
 
 export class JiraServer {
@@ -22,16 +22,16 @@ export class JiraServer {
   private jiraApi: JiraApiService;
 
   private jiraConfig: JiraBaseConfig;
-  
+
   constructor() {
     // 使用环境变量重载工具获取最新配置
     this.jiraConfig = {
       JIRA_BASE_URL: process.env.JIRA_BASE_URL,
       JIRA_USERNAME: process.env.JIRA_USERNAME,
       JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
-      JIRA_TYPE: process.env.JIRA_TYPE,
+      JIRA_TYPE: process.env.JIRA_TYPE || 'server',
     };
-    console.log(`Jira API 初始化: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
+    // console.log(`Jira API 初始化: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
 
     this.server = new Server(
       {
@@ -41,6 +41,7 @@ export class JiraServer {
       {
         capabilities: {
           tools: {},
+          logging: {},
         },
       },
     );
@@ -58,6 +59,9 @@ export class JiraServer {
         this.jiraConfig.JIRA_API_TOKEN,
       );
     }
+    
+    // 将server实例传递给jiraApi
+    this.jiraApi.setServer(this.server);
 
     this.setupToolHandlers();
 
@@ -126,7 +130,9 @@ export class JiraServer {
             required: ["issueId"],
             additionalProperties: false,
           },
-          outputSchema: {}
+          outputSchema: {
+            type: "object"
+          }
         },
         {
           name: "create_issue",
@@ -140,8 +146,8 @@ export class JiraServer {
               },
               issueType: {
                 type: "string",
-                // description: "要创建的问题类型的id（例如：“缺陷的id：10010”、“故事的id：10001”、“子任务的id：10002”）",
-                description: "要创建的问题类型（例如：“缺陷”、“故事”、“任务”）",
+                // description: "要创建的问题类型的id（例如：'缺陷的id：10010'、'故事的id：10001'、'子任务的id：10002'）",
+                description: "要创建的问题类型（例如：'缺陷'、'故事'、'任务'）",
               },
               summary: {
                 type: "string",
@@ -151,6 +157,55 @@ export class JiraServer {
                 type: "string",
                 description: "问题描述",
               },
+              fixVersions: {
+                type: "array",
+                description: "问题所属版本",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: {
+                      type: "string",
+                      description: "问题所属版本名称",
+                    },
+                  },
+                  required: ["name"],
+                  additionalProperties: false,
+                },
+              },
+              duedate: {
+                type: "string",
+                description: "问题到期日",
+              },
+              priority: {
+                type: "string",
+                description: "问题优先级",
+              },
+              assignee: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                    description: "经办人的名称",
+                  }
+                },
+                required: ["name"],
+                additionalProperties: false,
+              },
+              // issuelinks: {
+              //   type: "array",
+              //   description: "链接的问题",
+              //   items: {
+              //     type: "object",
+              //     properties: {
+              //       id: {
+              //         type: "string",
+              //         description: "链接的问题的ID",
+              //       },
+              //     },
+              //     required: ["id"],
+              //     additionalProperties: false,
+              //   },
+              // },
               fields: {
                 type: "object",
                 description: "要在问题上设置的额外字段",
@@ -159,6 +214,42 @@ export class JiraServer {
                   acceptanceCriteria: {
                     type: "string",
                     description: "问题的验收标准",
+                  },
+                  department: {
+                    type: "string",
+                    description: "问题的部门",
+                  },
+                  team: {
+                    type: "array",
+                    description: "问题的团队",
+                    items: {
+                      type: "string",
+                      description: "问题的团队",
+                    },
+                  },
+                  requirementScope: {
+                    type: "object",
+                    description: "问题的需求范围",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "问题的需求范围名称",
+                      },
+                    },
+                    required: ["name"],
+                    additionalProperties: false,
+                  },
+                  testType: {
+                    type: "object",
+                    description: "问题的测试类型",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "问题的测试类型名称",
+                      },
+                    },
+                    required: ["name"],
+                    additionalProperties: false,
                   },
                   storyPoints: {
                     type: "number",
@@ -182,7 +273,24 @@ export class JiraServer {
                       required: ["name"],
                       additionalProperties: false,
                     }
-                  }
+                  },
+
+                  userInterface: {
+                    type: "object",
+                    description: "问题是否包含用户可操作页面",
+                    properties: {
+                      value: {
+                        type: "string",
+                        description: "问题是否包含用户可操作页面",
+                      },
+                    },
+                    required: ["value"],
+                    additionalProperties: false,
+                  },
+                  plannedCompletionDate: {
+                    type: "string",
+                    description: "问题的计划开发完成日期",
+                  },
                 },
               }
             },
@@ -200,14 +308,65 @@ export class JiraServer {
                 type: "string",
                 description: "要更新的问题的键",
               },
+
               fields: {
                 type: "object",
                 description: "要在问题上更新的字段",
                 additionalProperties: true,
                 properties: {
+
+                  summary: {
+                    type: "string",
+                    description: "要更新的问题摘要/标题",
+                  },
+                  department: {
+                    type: "string",
+                    description: "要更新的部门",
+                  },
+                  team: {
+                    type: "array",
+                    description: "要更新的团队",
+                    items: {
+                      type: "string",
+                      description: "要更新的团队",
+                    },
+                  },
+                  requirementScope: {
+                    type: "object",
+                    description: "要更新的需求范围",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "要更新的需求范围名称",
+                      },
+                    },
+                    required: ["name"],
+                    additionalProperties: false,
+                  },
+                  description: {
+                    type: "string",
+                    description: "要更新的问题描述",
+                  },
                   acceptanceCriteria: {
                     type: "string",
                     description: "要更新的验收标准",
+                  },
+
+                  fixVersions: {
+                    type: "array",
+                    description: "要更新的问题所属版本",
+                  },
+                  testType: {
+                    type: "object",
+                    description: "要更新的测试类型",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "要更新的测试类型名称",
+                      },
+                    },
+                    required: ["name"],
+                    additionalProperties: false,
                   },
                   storyPoints: {
                     type: "number",
@@ -216,6 +375,26 @@ export class JiraServer {
                   functionPoints: {
                     type: "number",
                     description: "要更新的功能点数",
+                  },
+                  duedate: {
+                    type: "string",
+                    description: "要更新的问题到期日",
+                  },
+                  priority: {
+                    type: "string",
+                    description: "要更新的问题优先级",
+                  },
+                  assignee: {
+                    type: "object",
+                    description: "要更新的问题经办人",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "要更新的经办人的名称",
+                      },
+                    },
+                    required: ["name"],
+                    additionalProperties: false,
                   },
                   developers: {
                     type: "array",
@@ -232,6 +411,38 @@ export class JiraServer {
                       additionalProperties: false,
                     }
                   },
+                  userInterface: {
+                    type: "object",
+                    description: "要更新的用户界面",
+                    properties: {
+                      value: {
+                        type: "string",
+                        description: "要更新的用户界面",
+                      },
+                    },
+                    required: ["value"],
+                    additionalProperties: false,
+                  },
+                  plannedCompletionDate: {
+                    type: "string",
+                    description: "要更新的计划开发完成日期",
+                  },
+                  // // TODO: 目前无法批量add Server有限制，没法像Cloud一样批量add
+                  // issuelinks: {
+                  //   type: "array",
+                  //   description: "要更新的链接的问题",
+                  //   items: {
+                  //     type: "object",
+                  //     properties: {
+                  //       id: {
+                  //         type: "string",
+                  //         description: "要更新的链接的问题的ID",
+                  //       },
+                  //     },
+                  //     required: ["id"],
+                  //     additionalProperties: false,
+                  //   },
+                  // },
                 },
               }
             },
@@ -392,6 +603,11 @@ export class JiraServer {
               args.issueType,
               args.summary,
               args.description as string | undefined,
+              args.fixVersions as Record<string, any>[] | undefined,
+              args.duedate as string | undefined,
+              args.priority as string | undefined,
+              args.assignee as Record<string, any> | undefined,
+              // args.issuelinks as Record<string, any>[] | undefined,
               args.fields as Record<string, any> | undefined,
             );
             return {
@@ -556,7 +772,7 @@ export class JiraServer {
   }
 
   async run() {
-    console.log('🔌 Using stdio transport');
+    // console.log('🔌 Using stdio transport');
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     // JIRA MCP server running on stdio

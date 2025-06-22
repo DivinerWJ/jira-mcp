@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build && chmod +x build/index.js",
-    "start": "bun build/index.js",
+    "start": "node generate-mcp-config.js && bun build/index.js",
+    "inspector": "cross-env DANGEROUSLY_OMIT_AUTH=true npx -y @modelcontextprotocol/inspector --config ./mcp.json --server jira build/index.js",
     "serve": "tsx --env-file=.env --watch src/server.ts ",
     "dev": "vite",
     "test": "bun test",
@@ -27,6 +28,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.1",
     "bun-types": "^1.2.12",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",

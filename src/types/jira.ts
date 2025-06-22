@@ -10,15 +10,26 @@ export interface CleanComment {
 export interface CleanJiraIssue {
   id: string;
   key: string;
-  summary: string | undefined;
   status: string | undefined;
   created: string | undefined;
   updated: string | undefined;
+  summary: string | undefined;
+  department?: string;
+  team?: string;
+  requirementScope?: string;
   description: string;
   acceptanceCriteria?: string;
+  fixVersions?: string[];
+  testType?: string;
   storyPoints?: number;
   functionPoints?: number;
+  duedate?: string;
+  priority?: string;
+  assignee?: string;
   developers?: string[];
+  userInterface?: string;
+  plannedCompletionDate?: string;
+  // issuelinks?: string[];
   comments?: CleanComment[];
   parent?: {
     id: string;
@@ -90,33 +101,38 @@ export interface AddCommentResponse {
 }
 
 export interface JiraBaseConfig {
+  /** Jira API令牌或密码 */
   JIRA_API_TOKEN: string;
+  /** Jira实例URL，例如: https://your-domain.atlassian.net */
   JIRA_BASE_URL: string;
+  /** Jira用户名或邮箱 */
   JIRA_USERNAME: string;
+  /** Jira类型: cloud (默认) 或 server (Jira Server/Data Center) */
   JIRA_TYPE: "cloud" | "server";
 }
 
 export interface EnvJiraCustomFields {
-  //  验收标准
-  ACCEPTANCE_CRITERIA_FIELD?: string;
-  //  故事点
-  STORY_POINTS_FIELD?: string;
-  //  功能点
-  FUNCTION_POINTS_FIELD?: string;
-  //  开发者
-  DEVELOPERS_FIELD?: string;
+  /** 部门自定义字段ID (例如: customfield_10506) */
+  DEPARTMENT_FIELD: string;
+  /** 团队自定义字段ID (例如: customfield_11637) */
+  TEAM_FIELD: string;
+  /** 需求范围自定义字段ID (例如: customfield_14501) */
+  REQUIREMENT_SCOPE_FIELD: string;
+  /** 验收标准自定义字段ID (例如: customfield_10555) */
+  ACCEPTANCE_CRITERIA_FIELD: string;
+  /** 测试类型自定义字段ID (例如: customfield_15701) */
+  TEST_TYPE_FIELD: string;
+  /** 故事点数自定义字段ID (例如: customfield_10006) */
+  STORY_POINTS_FIELD: string;
+  /** 功能点数自定义字段ID (例如: customfield_11875) */
+  FUNCTION_POINTS_FIELD: string;
+  /** 开发人员自定义字段ID (例如: customfield_11637) */
+  DEVELOPERS_FIELD: string;
+  /** 是否包含用户可操作页面自定义字段ID (例如: customfield_13901) */
+  USER_INTERFACE_FIELD: string;
+  /** 计划开发完成日期自定义字段ID (例如: customfield_13632) */
+  PLANNED_COMPLETION_DATE_FIELD: string;
 }
 
 // 组合类型
 export type EnvJiraConfig = JiraBaseConfig & EnvJiraCustomFields;
-
-export interface CustomFieldConfig {
-  // 验收标准
-  acceptanceCriteria: string;
-  // 故事点
-  storyPoints: string;
-  // 功能点
-  functionPoints: string;
-  // 开发人员
-  developers: string;
-};
