@@ -472,58 +472,90 @@ export class JiraApiService {
   }
 
   async createIssue(
-    projectKey: string,
-    issueType: string,
-    summary: string,
-    description?: string,
-    fixVersions?: Record<string, any>[],
-    duedate?: string,
-    priority?: string,
-    assignee?: Record<string, any>,
-    // issuelinks?: Record<string, any>,
-    fields?: Record<string, any>
+    params: Record<string, any>
   ): Promise<{ id: string; key: string }> {
     const {
-      department,
-      team,
-      requirementScope,
-      testType,
-      acceptanceCriteria,
-      storyPoints,
-      functionPoints,
-      developers,
-      userInterface,
-      plannedCompletionDate,
-      ...otherFields
-    } = fields || {};
-    const payload = {
+        fields,
+        ...defaultFields
+    } = params || {};
+    const payload: Record<string, any> = {
       fields: {
         project: {
-          key: projectKey,
+          key: defaultFields.projectKey,
         },
-        summary,
         issuetype: {
-          name: issueType,
+          name: defaultFields.issueType,
         },
-        ...(description && { description }),
-        ...(fixVersions && { fixVersions }),
-        ...(duedate && { duedate }),
-        ...(priority && { priority }),
-        ...(assignee && { assignee }),
-        // ...(issuelinks && { issuelinks }),
-        ...(department && { [JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD]: department }),
-        ...(team && { [JiraApiService.CUSTOM_FIELD.TEAM_FIELD]: team }),
-        ...(requirementScope && { [JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD]: requirementScope }),
-        ...(testType && { [JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD]: testType }),
-        ...(acceptanceCriteria && { [JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD]: acceptanceCriteria }),
-        ...(storyPoints && { [JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD]: storyPoints }),
-        ...(functionPoints && { [JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD]: functionPoints }),
-        ...(developers && { [JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD]: developers }),
-        ...(userInterface && { [JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD]: userInterface }),
-        ...(plannedCompletionDate && { [JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD]: plannedCompletionDate }),
-        ...otherFields,
-      },
+        summary: defaultFields.summary,
+      }
     };
+
+    if (fields.department) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = {value: fields.department};
+    }
+
+    if (fields.team) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = fields.team;
+    }
+    
+    if (fields.requirementScope) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD] = {value: fields.requirementScope};
+    }
+
+    if (fields.description) {
+      payload.fields.description = fields.description;
+    }
+
+    if (fields.acceptanceCriteria) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = {value: fields.acceptanceCriteria};
+    }
+
+    if (fields.fixVersions && Array.isArray(fields.fixVersions)) {
+      payload.fields.fixVersions = fields.fixVersions.map((version: string) => ({
+        name: version,
+      }));
+    }
+
+    if (fields.testType) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD] = {value: fields.testType};
+    }
+
+    if (fields.storyPoints) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD] = fields.storyPoints;
+    }
+
+    if (fields.functionPoints) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD] = fields.functionPoints;
+    }
+
+    if (fields.duedate) {
+      payload.fields.duedate = fields.duedate;
+    }
+
+    if (fields.priority) {
+      payload.fields.priority = {name: fields.priority};
+    }
+
+    if (fields.assignee) {
+      payload.fields.assignee = {name: fields.assignee};
+    }
+    
+    if (fields.developers && Array.isArray(fields.developers)) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = fields.developers.map((developer: string) => ({name: developer}));
+    }
+
+    if (fields.userInterface) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD] = {value: fields.userInterface};
+    }
+
+    if (fields.plannedCompletionDate) {
+      payload.fields[JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD] = fields.plannedCompletionDate;
+    }
+
+    // 发送操作开始通知
+    this.notifyApiOperation('创建问题-start', { 
+      payload
+    });
 
     return this.fetchJson<{ id: string; key: string }>("/rest/api/3/issue", {
       method: "POST",

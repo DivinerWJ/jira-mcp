@@ -16,7 +16,6 @@ const absoluteBuildPath = path.resolve(__dirname, buildPath).replace(/\\/g, '/')
 function extractEnvVarsAndDescriptions() {
   try {
     const typesFilePath = path.join(__dirname, 'src/types/jira.ts');
-    console.log(`从文件读取类型定义: ${typesFilePath}`);
     const typesContent = fs.readFileSync(typesFilePath, 'utf8');
 
     const envVars = [];
@@ -33,11 +32,9 @@ function extractEnvVarsAndDescriptions() {
 
       envVars.push(varName);
       descriptions[varName] = description;
-
-      // console.log(`提取环境变量: ${varName} => "${description}"`);
     }
 
-    console.log(`从类型定义文件中总共提取了 ${envVars.length} 个环境变量`);
+    console.log(`初始化...\n获取到 ${envVars.length} 个环境变量`);
     return { envVars, descriptions };
   } catch (error) {
     console.warn('无法从类型定义文件中提取环境变量:', error.message);
@@ -47,36 +44,45 @@ function extractEnvVarsAndDescriptions() {
 // 从类型定义中提取所有可能的环境变量及其描述
 const { envVars, descriptions } = extractEnvVarsAndDescriptions();
 
-// 从.env.local文件读取环境变量
+// 从.env文件读取环境变量
 function readEnvLocalFile() {
-  const envLocalPath = path.join(__dirname, '.env.local');
+  const envLocalPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envLocalPath)) {
+    return null;
+  }
 
   try {
     if (fs.existsSync(envLocalPath)) {
-      console.log(`发现.env.local文件，正在读取配置...`);
+      console.log(`发现.env文件，正在读取配置...`);
       const envLocalConfig = dotenv.parse(fs.readFileSync(envLocalPath));
       return envLocalConfig;
     }
   } catch (error) {
-    console.warn(`读取.env.local文件时出错: ${error.message}`);
+    console.warn(`读取.env文件时出错: ${error.message}`);
   }
 
-  return {};
+  return null;
 }
 
 // 动态生成环境变量配置
-function generateEnvConfig() {
+function generateMcpConfig() {
 
-  // 从.env.local文件读取配置值（如果存在）
+  // 从.env文件读取配置值（如果存在）
   const envLocalValues = readEnvLocalFile();
+  if (!envLocalValues) {
+    console.log('未获取到.env文件配置，跳过生成MCP配置');
+    return;
+  }
 
   // 创建配置对象
   const envConfig = {};
 
   // 确保所有从类型定义中提取的环境变量都有值
   envVars.forEach(varName => {
-    // 优先级：进程环境变量 > .env.local文件 > 空字符串
-    envConfig[varName] = process.env[varName] || envLocalValues[varName] || '';
+    // 优先级：进程环境变量 > .env文件 > 空字符串
+    if (process.env[varName] || envLocalValues[varName]) {
+      envConfig[varName] = process.env[varName] || envLocalValues[varName];
+    }
   });
 
   // 创建配置对象
@@ -109,11 +115,13 @@ function generateEnvExample() {
 
   // 添加所有变量
   envVars.forEach(varName => {
+    const match = descriptions[varName] ? descriptions[varName].match(/\(例如:\s*(.*?)\)/) : null;
+    const defaultValue = match ? match[1] : '';
     const description = descriptions[varName] || `${varName} 的值`;
-    exampleContent += `# ${description}\n${varName}=\n\n`;
+    exampleContent += `# ${description}\n${varName}=${defaultValue}\n\n`;
   });
-  try {
 
+  try {
     // 写入示例文件
     const examplePath = path.join(__dirname, '.env.example');
     fs.writeFileSync(examplePath, exampleContent, 'utf8');
@@ -121,13 +129,10 @@ function generateEnvExample() {
   } catch (error) {
     console.error('生成环境变量示例文件时出错:', error);
   }
-
-  // 停止进程
-  process.exit(0);
 }
-
-// 写入配置文件
-generateEnvConfig()
 
 // 生成环境变量示例文件
 generateEnvExample(); 
+
+// 生成MCP配置文件
+generateMcpConfig()

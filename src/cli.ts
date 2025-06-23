@@ -59,7 +59,7 @@ export class JiraServer {
         this.jiraConfig.JIRA_API_TOKEN,
       );
     }
-    
+
     // 将server实例传递给jiraApi
     this.jiraApi.setServer(this.server);
 
@@ -146,31 +146,55 @@ export class JiraServer {
               },
               issueType: {
                 type: "string",
-                // description: "要创建的问题类型的id（例如：'缺陷的id：10010'、'故事的id：10001'、'子任务的id：10002'）",
-                description: "要创建的问题类型（例如：'缺陷'、'故事'、'任务'）",
+                description: "要创建的问题类型的id（例如：'缺陷的id：10010'、'故事的id：10001'、'子任务的id：10002'）",
               },
               summary: {
                 type: "string",
                 description: "问题摘要/标题",
               },
+              department: {
+                type: "string",
+                description: "问题的部门名称",
+              },
+              team: {
+                type: "array",
+                description: "问题的团队",
+                items: {
+                  type: "string",
+                  description: "问题的团队",
+                },
+              },
+              requirementScope: {
+                type: "string",
+                description: "问题的需求范围名称",
+              },
               description: {
                 type: "string",
                 description: "问题描述",
+              },
+              acceptanceCriteria: {
+                type: "string",
+                description: "问题的验收标准",
               },
               fixVersions: {
                 type: "array",
                 description: "问题所属版本",
                 items: {
-                  type: "object",
-                  properties: {
-                    name: {
-                      type: "string",
-                      description: "问题所属版本名称",
-                    },
-                  },
-                  required: ["name"],
-                  additionalProperties: false,
+                  type: "string",
+                  description: "问题所属版本名称",
                 },
+              },
+              testType: {
+                type: "string",
+                description: "问题的测试类型名称",
+              },
+              storyPoints: {
+                type: "number",
+                description: "问题的故事点数",
+              },
+              functionPoints: {
+                type: "number",
+                description: "问题的功能点数",
               },
               duedate: {
                 type: "string",
@@ -181,15 +205,24 @@ export class JiraServer {
                 description: "问题优先级",
               },
               assignee: {
-                type: "object",
-                properties: {
-                  name: {
-                    type: "string",
-                    description: "经办人的名称",
-                  }
-                },
-                required: ["name"],
-                additionalProperties: false,
+                type: "string",
+                description: "经办人的名称，同开发人员相同",
+              },
+              developers: {
+                type: "array",
+                description: "问题的开发人员",
+                items: {
+                  type: "string",
+                  description: "问题的开发人员的名称，创建时默认是经办人",
+                }
+              },
+              userInterface: {
+                type: "string",
+                description: "问题是否包含用户可操作页面",
+              },
+              plannedCompletionDate: {
+                type: "string",
+                description: "问题的计划开发完成日期",
               },
               // issuelinks: {
               //   type: "array",
@@ -210,91 +243,9 @@ export class JiraServer {
                 type: "object",
                 description: "要在问题上设置的额外字段",
                 additionalProperties: true,
-                properties: {
-                  acceptanceCriteria: {
-                    type: "string",
-                    description: "问题的验收标准",
-                  },
-                  department: {
-                    type: "string",
-                    description: "问题的部门",
-                  },
-                  team: {
-                    type: "array",
-                    description: "问题的团队",
-                    items: {
-                      type: "string",
-                      description: "问题的团队",
-                    },
-                  },
-                  requirementScope: {
-                    type: "object",
-                    description: "问题的需求范围",
-                    properties: {
-                      name: {
-                        type: "string",
-                        description: "问题的需求范围名称",
-                      },
-                    },
-                    required: ["name"],
-                    additionalProperties: false,
-                  },
-                  testType: {
-                    type: "object",
-                    description: "问题的测试类型",
-                    properties: {
-                      name: {
-                        type: "string",
-                        description: "问题的测试类型名称",
-                      },
-                    },
-                    required: ["name"],
-                    additionalProperties: false,
-                  },
-                  storyPoints: {
-                    type: "number",
-                    description: "问题的故事点数",
-                  },
-                  functionPoints: {
-                    type: "number",
-                    description: "问题的功能点数",
-                  },
-                  developers: {
-                    type: "array",
-                    description: "问题的开发人员",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: {
-                          type: "string",
-                          description: "开发人员的名称",
-                        }
-                      },
-                      required: ["name"],
-                      additionalProperties: false,
-                    }
-                  },
-
-                  userInterface: {
-                    type: "object",
-                    description: "问题是否包含用户可操作页面",
-                    properties: {
-                      value: {
-                        type: "string",
-                        description: "问题是否包含用户可操作页面",
-                      },
-                    },
-                    required: ["value"],
-                    additionalProperties: false,
-                  },
-                  plannedCompletionDate: {
-                    type: "string",
-                    description: "问题的计划开发完成日期",
-                  },
-                },
-              }
+              },
             },
-            required: ["projectKey", "issueType", "summary"],
+            required: ["projectKey", "issueType", "summary", "requirementScope", "description", "acceptanceCriteria"],
             additionalProperties: false,
           },
         },
@@ -591,25 +542,20 @@ export class JiraServer {
               !args.issueType ||
               typeof args.issueType !== "string" ||
               !args.summary ||
-              typeof args.summary !== "string"
+              typeof args.summary !== "string" ||
+              !args.requirementScope ||
+              typeof args.requirementScope !== "string" ||
+              !args.description ||
+              typeof args.description !== "string" ||
+              !args.acceptanceCriteria ||
+              typeof args.acceptanceCriteria !== "string"
             ) {
               throw new McpError(
                 ErrorCode.InvalidParams,
-                "projectKey, issueType, and summary are required",
+                "项目编号, 问题类型, 问题标题, 需求范围, 描述, 验收标准是必填项",
               );
             }
-            const response = await this.jiraApi.createIssue(
-              args.projectKey,
-              args.issueType,
-              args.summary,
-              args.description as string | undefined,
-              args.fixVersions as Record<string, any>[] | undefined,
-              args.duedate as string | undefined,
-              args.priority as string | undefined,
-              args.assignee as Record<string, any> | undefined,
-              // args.issuelinks as Record<string, any>[] | undefined,
-              args.fields as Record<string, any> | undefined,
-            );
+            const response = await this.jiraApi.createIssue(args);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },

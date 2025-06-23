@@ -14,10 +14,10 @@ class JiraHttpServer extends JiraServer {
     super();
   }
   async run() {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🌐 Starting HTTP server on port ${HTTP_PORT}`);
-      await this.startHttpServer(HTTP_PORT);
-    }
+    // if (process.env.NODE_ENV === 'development') {
+    console.log(`🌐 Starting HTTP server on port ${HTTP_PORT}`);
+    await this.startHttpServer(HTTP_PORT);
+    // }
   }
 
   // 重新加载配置方法

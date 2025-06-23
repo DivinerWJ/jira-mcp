@@ -101,20 +101,20 @@ export interface AddCommentResponse {
 }
 
 export interface JiraBaseConfig {
-  /** Jira API令牌或密码 */
+  /** Jira API令牌或密码 (例如: TOKEN) */
   JIRA_API_TOKEN: string;
-  /** Jira实例URL，例如: https://your-domain.atlassian.net */
+  /** Jira实例URL (例如: https://your-domain.atlassian.net) */
   JIRA_BASE_URL: string;
-  /** Jira用户名或邮箱 */
+  /** Jira用户名或邮箱 (例如: admin) */
   JIRA_USERNAME: string;
-  /** Jira类型: cloud (默认) 或 server (Jira Server/Data Center) */
-  JIRA_TYPE: "cloud" | "server";
+  /** Jira类型: server (默认) 或 cloud (例如: server) */
+  JIRA_TYPE: "server" | "cloud";
 }
 
 export interface EnvJiraCustomFields {
   /** 部门自定义字段ID (例如: customfield_10506) */
   DEPARTMENT_FIELD: string;
-  /** 团队自定义字段ID (例如: customfield_11637) */
+  /** 团队自定义字段ID (例如: customfield_11863) */
   TEAM_FIELD: string;
   /** 需求范围自定义字段ID (例如: customfield_14501) */
   REQUIREMENT_SCOPE_FIELD: string;

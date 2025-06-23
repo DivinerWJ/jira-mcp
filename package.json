@@ -4,8 +4,9 @@
   "description": "JIRA MCP Server",
   "type": "module",
   "scripts": {
+    "init": "node generate-mcp-config.js",
     "build": "vite build && chmod +x build/index.js",
-    "start": "node generate-mcp-config.js && bun build/index.js",
+    "start": "bun build/index.js",
     "inspector": "cross-env DANGEROUSLY_OMIT_AUTH=true npx -y @modelcontextprotocol/inspector --config ./mcp.json --server jira build/index.js",
     "serve": "tsx --env-file=.env --watch src/server.ts ",
     "dev": "vite",
