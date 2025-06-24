@@ -1,0 +1,12 @@
+{
+  "printWidth": 80,
+  "config doc": "https://prettier.io/docs/en/configuration.html",
+  "eslintIntegration": true,
+  "vueIndentScriptAndStyle": false,
+  "jsxSingleQuote": false,
+  "jsxBracketSameLine": false,
+  "semi": true,
+  "singleQuote": false,
+  "arrowParens": "always",
+  "trailingComma": "all"
+}

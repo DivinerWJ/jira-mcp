@@ -6,27 +6,36 @@ import {
   JiraCommentResponse,
   SearchIssuesResponse,
   EnvJiraCustomFields,
+  CreateIssueParams,
+  CreateIssueRequest,
+  CreateIssueResponse,
+  CustomFieldValue,
+  CustomFieldArray,
 } from "../types/jira.js";
-
-
 
 export class JiraApiService {
   protected baseUrl: string;
   protected headers: Headers;
   protected server?: any; // MCP Server实例
+  protected sseTransport?: any; // SSE Transport实例
 
   // 定义可配置字段及对应缺省值
   private static readonly CUSTOM_FIELD: EnvJiraCustomFields = {
-    DEPARTMENT_FIELD: process.env.DEPARTMENT_FIELD || 'customfield_10506',
-    TEAM_FIELD: process.env.TEAM_FIELD || 'customfield_11863',
-    REQUIREMENT_SCOPE_FIELD: process.env.REQUIREMENT_SCOPE_FIELD || 'customfield_14501',
-    ACCEPTANCE_CRITERIA_FIELD: process.env.ACCEPTANCE_CRITERIA_FIELD || 'customfield_10555',
-    TEST_TYPE_FIELD: process.env.TEST_TYPE_FIELD || 'customfield_15701',
-    STORY_POINTS_FIELD: process.env.STORY_POINTS_FIELD || 'customfield_10006',
-    FUNCTION_POINTS_FIELD: process.env.FUNCTION_POINTS_FIELD || 'customfield_11875',
-    DEVELOPERS_FIELD: process.env.DEVELOPERS_FIELD || 'customfield_11637',
-    USER_INTERFACE_FIELD: process.env.USER_INTERFACE_FIELD || 'customfield_13901',
-    PLANNED_COMPLETION_DATE_FIELD: process.env.PLANNED_COMPLETION_DATE_FIELD || 'customfield_13632'
+    DEPARTMENT_FIELD: process.env.DEPARTMENT_FIELD || "customfield_10506",
+    TEAM_FIELD: process.env.TEAM_FIELD || "customfield_11863",
+    REQUIREMENT_SCOPE_FIELD:
+      process.env.REQUIREMENT_SCOPE_FIELD || "customfield_14501",
+    ACCEPTANCE_CRITERIA_FIELD:
+      process.env.ACCEPTANCE_CRITERIA_FIELD || "customfield_10555",
+    TEST_TYPE_FIELD: process.env.TEST_TYPE_FIELD || "customfield_15701",
+    STORY_POINTS_FIELD: process.env.STORY_POINTS_FIELD || "customfield_10006",
+    FUNCTION_POINTS_FIELD:
+      process.env.FUNCTION_POINTS_FIELD || "customfield_11875",
+    DEVELOPERS_FIELD: process.env.DEVELOPERS_FIELD || "customfield_11637",
+    USER_INTERFACE_FIELD:
+      process.env.USER_INTERFACE_FIELD || "customfield_13901",
+    PLANNED_COMPLETION_DATE_FIELD:
+      process.env.PLANNED_COMPLETION_DATE_FIELD || "customfield_13632",
   };
 
   // 设置Server实例的方法
@@ -34,9 +43,39 @@ export class JiraApiService {
     this.server = server;
   }
 
+  // 设置SSE Transport的方法
+  setSseTransport(transport: any) {
+    this.sseTransport = transport;
+  }
+
   // 通知相关方法
+  private logApiNotification(
+    operation: string,
+    data: any,
+    level: "operation" | "success" | "error",
+  ) {
+    // 获取启动命令中的参数  判断是否是debug模式
+    const isDebug = process.argv.includes('--debug');
+    if (!this.sseTransport || !isDebug) {
+      return
+    }
+
+    const now = new Date();
+    const formattedTime = now.toLocaleString();
+    const colorCode = "\x1b[36m";
+    const resetCode = "\x1b[0m";
+    let messagePrefix = operation;
+    switch (level) {
+      case "error":
+        messagePrefix = `${messagePrefix}操作失败`;
+        break;
+    }
+    console.debug(`${colorCode}[${formattedTime}] ${messagePrefix}:\n${JSON.stringify(data, null, 2)}${resetCode}`);
+  }
+
   protected notifyApiOperation(operation: string, params: any) {
     if (this.server) {
+        this.logApiNotification(operation, params, "operation");
       this.server.sendLoggingMessage({
         level: "debug",
         data: { operation, params },
@@ -47,6 +86,7 @@ export class JiraApiService {
 
   protected notifyApiSuccess(operation: string, result: any) {
     if (this.server) {
+      this.logApiNotification(operation, result, "success");
       this.server.sendLoggingMessage({
         level: "debug",
         data: { operation, result },
@@ -57,6 +97,7 @@ export class JiraApiService {
 
   protected notifyApiError(operation: string, error: any) {
     if (this.server) {
+      this.logApiNotification(operation, error, "error");
       this.server.sendLoggingMessage({
         level: "error",
         data: {
@@ -81,13 +122,12 @@ export class JiraApiService {
   protected async handleFetchError(
     response: Response,
     responseBody: any,
-    url?: string
+    url?: string,
   ): Promise<never> {
     if (!response.ok) {
       let message = response.statusText;
       let errorData = responseBody;
       try {
-
         if (
           Array.isArray((errorData as any).errorMessages) &&
           (errorData as any).errorMessages.length > 0
@@ -96,9 +136,11 @@ export class JiraApiService {
         } else if ((errorData as any).message) {
           message = (errorData as any).message;
           // 判断是否是对象
-        } else if (typeof (errorData as any).errors === 'object') {
+        } else if (typeof (errorData as any).errors === "object") {
           // 将对象按照`key: value; key: value`形式输出字符串
-          message = Object.entries((errorData as any).errors).map(([key, value]) => `${key}: ${value}`).join('; ');
+          message = Object.entries((errorData as any).errors)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("; ");
         } else if ((errorData as any).errorMessage) {
           message = (errorData as any).errorMessage;
         }
@@ -111,7 +153,7 @@ export class JiraApiService {
 
       const errorMessage = message ? `: ${message}` : "";
       throw new Error(
-        `JIRA API Error${errorMessage} (Status: ${response.status})`
+        `JIRA API Error${errorMessage} (Status: ${response.status})`,
       );
     }
 
@@ -125,7 +167,7 @@ export class JiraApiService {
   protected extractIssueMentions(
     content: any[],
     source: "description" | "comment",
-    commentId?: string
+    commentId?: string,
   ): CleanJiraIssue["relatedIssues"] {
     const mentions: NonNullable<CleanJiraIssue["relatedIssues"]> = [];
 
@@ -229,7 +271,7 @@ export class JiraApiService {
     if (issue.fields?.description?.content) {
       const mentions = this.extractIssueMentions(
         issue.fields.description.content,
-        "description"
+        "description",
       );
       if (mentions.length > 0) {
         cleanedIssue.relatedIssues = mentions;
@@ -326,17 +368,17 @@ export class JiraApiService {
       });
 
       // 发送操作开始通知
-      this.notifyApiOperation('搜索问题-start', { 
+      this.notifyApiOperation("搜索问题-start", {
         query: params.toString(),
-        queryObject: Object.fromEntries(params)
+        queryObject: Object.fromEntries(params),
       });
 
       const data = await this.fetchJson<any>(`/rest/api/3/search?${params}`);
 
       // 发送操作成功通知
-      this.notifyApiSuccess('搜索问题-success', { 
+      this.notifyApiSuccess("搜索问题-success", {
         total: data.total,
-        issuesCount: data.issues.length
+        issuesCount: data.issues.length,
       });
 
       return {
@@ -345,7 +387,7 @@ export class JiraApiService {
       };
     } catch (error) {
       // 发送操作失败通知
-      this.notifyApiError('搜索问题-error', error);
+      this.notifyApiError("搜索问题-error", error);
       console.error("Error searching issues:", error);
       throw error;
     }
@@ -377,15 +419,15 @@ export class JiraApiService {
     const issuesWithComments = await Promise.all(
       data.issues.map(async (issue: any) => {
         const commentsData = await this.fetchJson<any>(
-          `/rest/api/3/issue/${issue.key}/comment`
+          `/rest/api/3/issue/${issue.key}/comment`,
         );
         const cleanedIssue = this.cleanIssue(issue);
         const comments = commentsData.comments.map((comment: any) =>
-          this.cleanComment(comment)
+          this.cleanComment(comment),
         );
 
         const commentMentions = comments.flatMap(
-          (comment: CleanComment) => comment.mentions
+          (comment: CleanComment) => comment.mentions,
         );
         cleanedIssue.relatedIssues = [
           ...cleanedIssue.relatedIssues,
@@ -394,7 +436,7 @@ export class JiraApiService {
 
         cleanedIssue.comments = comments;
         return cleanedIssue;
-      })
+      }),
     );
 
     return issuesWithComments;
@@ -435,23 +477,34 @@ export class JiraApiService {
 
     const issue = this.cleanIssue(issueData);
     // 添加自定义字段到返回结果
-    issue.acceptanceCriteria = issueData.fields?.[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD];
-    issue.department = issueData.fields?.[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD];
+    issue.acceptanceCriteria =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD];
+    issue.department =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD];
     issue.team = issueData.fields?.[JiraApiService.CUSTOM_FIELD.TEAM_FIELD];
-    issue.requirementScope = issueData.fields?.[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD];
-    issue.testType = issueData.fields?.[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD];
-    issue.storyPoints = issueData.fields?.[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD];
-    issue.functionPoints = issueData.fields?.[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD];
-    issue.developers = issueData.fields?.[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD];
-    issue.userInterface = issueData.fields?.[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD];
-    issue.plannedCompletionDate = issueData.fields?.[JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD];
+    issue.requirementScope =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD];
+    issue.testType =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD];
+    issue.storyPoints =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD];
+    issue.functionPoints =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD];
+    issue.developers =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD];
+    issue.userInterface =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD];
+    issue.plannedCompletionDate =
+      issueData.fields?.[
+        JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
+      ];
 
     const comments = commentsData.comments.map((comment: any) =>
-      this.cleanComment(comment)
+      this.cleanComment(comment),
     );
 
     const commentMentions = comments.flatMap(
-      (comment: CleanComment) => comment.mentions
+      (comment: CleanComment) => comment.mentions,
     );
     issue.relatedIssues = [...issue.relatedIssues, ...commentMentions];
 
@@ -460,7 +513,7 @@ export class JiraApiService {
     if (issue.epicLink) {
       try {
         const epicData = await this.fetchJson<any>(
-          `/rest/api/3/issue/${issue.epicLink.key}?fields=summary`
+          `/rest/api/3/issue/${issue.epicLink.key}?fields=summary`,
         );
         issue.epicLink.summary = epicData.fields?.summary;
       } catch (error) {
@@ -471,35 +524,40 @@ export class JiraApiService {
     return issue;
   }
 
-  async createIssue(
-    params: Record<string, any>
-  ): Promise<{ id: string; key: string }> {
-    const {
-        fields,
-        ...defaultFields
-    } = params || {};
-    const payload: Record<string, any> = {
+  async createIssue(params: CreateIssueParams): Promise<CreateIssueResponse> {
+    const { fields: extraFields, ...fields } = params;
+    const payload: CreateIssueRequest = {
       fields: {
         project: {
-          key: defaultFields.projectKey,
+          key: fields.projectKey,
         },
         issuetype: {
-          name: defaultFields.issueType,
+          name: fields.issueType,
         },
-        summary: defaultFields.summary,
-      }
+        summary: fields.summary,
+        ...extraFields,
+      },
     };
 
+    // 类型安全的字段映射
     if (fields.department) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = {value: fields.department};
+      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = {
+        value: fields.department,
+      } as CustomFieldValue;
     }
 
     if (fields.team) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = fields.team;
+      if (Array.isArray(fields.team)) {
+        payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = fields.team;
+      } else {
+        payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = [fields.team];
+      }
     }
-    
+
     if (fields.requirementScope) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD] = {value: fields.requirementScope};
+      payload.fields[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD] = {
+        value: fields.requirementScope,
+      } as CustomFieldValue;
     }
 
     if (fields.description) {
@@ -507,25 +565,34 @@ export class JiraApiService {
     }
 
     if (fields.acceptanceCriteria) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = {value: fields.acceptanceCriteria};
+      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = {
+        value: fields.acceptanceCriteria,
+      } as CustomFieldValue;
     }
 
     if (fields.fixVersions && Array.isArray(fields.fixVersions)) {
-      payload.fields.fixVersions = fields.fixVersions.map((version: string) => ({
-        name: version,
-      }));
+      payload.fields.fixVersions = fields.fixVersions.map(
+        (version: string) =>
+          ({
+            name: version,
+          } as CustomFieldArray),
+      );
     }
 
     if (fields.testType) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD] = {value: fields.testType};
+      payload.fields[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD] = {
+        value: fields.testType,
+      } as CustomFieldValue;
     }
 
-    if (fields.storyPoints) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD] = fields.storyPoints;
+    if (typeof fields.storyPoints === "number") {
+      payload.fields[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD] =
+        fields.storyPoints;
     }
 
-    if (fields.functionPoints) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD] = fields.functionPoints;
+    if (typeof fields.functionPoints === "number") {
+      payload.fields[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD] =
+        fields.functionPoints;
     }
 
     if (fields.duedate) {
@@ -533,31 +600,36 @@ export class JiraApiService {
     }
 
     if (fields.priority) {
-      payload.fields.priority = {name: fields.priority};
+      payload.fields.priority = { name: fields.priority };
     }
 
     if (fields.assignee) {
-      payload.fields.assignee = {name: fields.assignee};
+      payload.fields.assignee = { name: fields.assignee };
     }
-    
+
     if (fields.developers && Array.isArray(fields.developers)) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = fields.developers.map((developer: string) => ({name: developer}));
+      payload.fields[JiraApiService.CUSTOM_FIELD.DEVELOPERS_FIELD] =
+        fields.developers.map((developer: string) => ({ name: developer }));
     }
 
     if (fields.userInterface) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD] = {value: fields.userInterface};
+      payload.fields[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD] = {
+        value: fields.userInterface,
+      } as CustomFieldValue;
     }
 
     if (fields.plannedCompletionDate) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD] = fields.plannedCompletionDate;
+      payload.fields[
+        JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
+      ] = fields.plannedCompletionDate;
     }
 
     // 发送操作开始通知
-    this.notifyApiOperation('创建问题-start', { 
-      payload
+    this.notifyApiOperation("创建问题-start", {
+      payload,
     });
 
-    return this.fetchJson<{ id: string; key: string }>("/rest/api/3/issue", {
+    return this.fetchJson<CreateIssueResponse>("/rest/api/3/issue", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -569,7 +641,7 @@ export class JiraApiService {
   ): Promise<void> {
     try {
       // 发送操作开始通知
-      this.notifyApiOperation('更新问题', { issueKey, fields });
+      this.notifyApiOperation("更新问题", { issueKey, fields });
 
       const body = {
         fields,
@@ -581,20 +653,20 @@ export class JiraApiService {
       });
 
       // 发送操作成功通知
-      this.notifyApiSuccess('更新问题', { issueKey });
+      this.notifyApiSuccess("更新问题", { issueKey });
     } catch (error) {
       // 发送操作失败通知
-      this.notifyApiError('更新问题', error);
+      this.notifyApiError("更新问题", error);
       console.error(`Error updating issue ${issueKey}:`, error);
       throw error;
     }
   }
 
   async getTransitions(
-    issueKey: string
+    issueKey: string,
   ): Promise<Array<{ id: string; name: string; to: { name: string } }>> {
     const data = await this.fetchJson<any>(
-      `/rest/api/3/issue/${issueKey}/transitions`
+      `/rest/api/3/issue/${issueKey}/transitions`,
     );
     return data.transitions;
   }
@@ -602,7 +674,7 @@ export class JiraApiService {
   async transitionIssue(
     issueKey: string,
     transitionId: string,
-    comment?: string
+    comment?: string,
   ): Promise<void> {
     const payload: any = {
       transition: { id: transitionId },
@@ -643,7 +715,7 @@ export class JiraApiService {
   async addAttachment(
     issueKey: string,
     file: Buffer,
-    filename: string
+    filename: string,
   ): Promise<{ id: string; filename: string }> {
     const formData = new FormData();
     formData.append("file", new Blob([file]), filename);
@@ -658,7 +730,7 @@ export class JiraApiService {
         method: "POST",
         headers,
         body: formData,
-      }
+      },
     );
 
     const data = await response.json();
@@ -700,7 +772,7 @@ export class JiraApiService {
    */
   async addCommentToIssue(
     issueIdOrKey: string,
-    body: string
+    body: string,
   ): Promise<AddCommentResponse> {
     const adfBody = this.createAdfFromBody(body);
 
@@ -713,7 +785,7 @@ export class JiraApiService {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     return {

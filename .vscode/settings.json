@@ -1,5 +1,24 @@
 {
   "search.exclude": {
     "**/.history": true
-  }
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.classpath": true,
+    "**/.factorypath": true,
+    "**/.history": true,
+    "**/.project": true,
+    "**/.settings": true
+  },
+  "hide-files.files": [],
+  "cSpell.words": [
+    "customfield",
+    "duedate",
+    "issuelinks",
+    "issuetype"
+  ]
 }

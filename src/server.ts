@@ -8,8 +8,6 @@ import { reloadEnv, getJiraConfig } from "./utils/env-loader.ts";
 const HTTP_PORT = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 3000;
 
 class JiraHttpServer extends JiraServer {
-  private sseTransport: SSEServerTransport | null = null;
-
   constructor() {
     super();
   }
@@ -55,19 +53,21 @@ class JiraHttpServer extends JiraServer {
 
     app.get("/sse", async (req: Request, res: Response) => {
       console.log("New SSE connection established");
-      this.sseTransport = new SSEServerTransport(
+      const sseTransport = new SSEServerTransport(
         "/messages",
         res as unknown as ServerResponse<IncomingMessage>,
       );
-      await this.getServer().connect(this.sseTransport); // 使用getServer方法访问server属性
+      this.setSseTransport(sseTransport);
+      await this.getServer().connect(sseTransport);
     });
 
     app.post("/messages", async (req: Request, res: Response) => {
-      if (!this.sseTransport) {
+      const sseTransport = this.getSseTransport();
+      if (!sseTransport) {
         res.sendStatus(400);
         return;
       }
-      await this.sseTransport.handlePostMessage(
+      await sseTransport.handlePostMessage(
         req as unknown as IncomingMessage,
         res as unknown as ServerResponse<IncomingMessage>,
       );

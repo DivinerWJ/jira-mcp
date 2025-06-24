@@ -10,7 +10,7 @@ import {
 import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
 
-import { JiraBaseConfig, EnvJiraConfig } from "./types/jira.ts";
+import { JiraBaseConfig, EnvJiraConfig, CreateIssueParams, transformToCreateIssueParams } from "./types/jira.ts";
 
 
 declare module "bun" {
@@ -22,6 +22,7 @@ export class JiraServer {
   private jiraApi: JiraApiService;
 
   private jiraConfig: JiraBaseConfig;
+  protected sseTransport: any = null;
 
   constructor() {
     // 使用环境变量重载工具获取最新配置
@@ -79,6 +80,17 @@ export class JiraServer {
 
   protected getJiraConfig(): JiraBaseConfig {
     return this.jiraConfig;
+  }
+
+  protected setSseTransport(transport: any) {
+    this.sseTransport = transport;
+    if (this.jiraApi) {
+      this.jiraApi.setSseTransport(transport);
+    }
+  }
+
+  protected getSseTransport() {
+    return this.sseTransport;
   }
 
   private setupToolHandlers() {
@@ -535,32 +547,25 @@ export class JiraServer {
             };
           }
           case "create_issue": {
-            // Basic validation
-            if (
-              !args.projectKey ||
-              typeof args.projectKey !== "string" ||
-              !args.issueType ||
-              typeof args.issueType !== "string" ||
-              !args.summary ||
-              typeof args.summary !== "string" ||
-              !args.requirementScope ||
-              typeof args.requirementScope !== "string" ||
-              !args.description ||
-              typeof args.description !== "string" ||
-              !args.acceptanceCriteria ||
-              typeof args.acceptanceCriteria !== "string"
-            ) {
-              throw new McpError(
-                ErrorCode.InvalidParams,
-                "项目编号, 问题类型, 问题标题, 需求范围, 描述, 验收标准是必填项",
-              );
+            try {
+              // 使用类型验证工具函数进行参数验证和转换
+              const createIssueParams = transformToCreateIssueParams(args);
+              
+              const response = await this.jiraApi.createIssue(createIssueParams);
+              return {
+                content: [
+                  { type: "text", text: JSON.stringify(response, null, 2) },
+                ],
+              };
+            } catch (error) {
+              if (error instanceof Error && error.message === 'Invalid parameters for createIssue') {
+                throw new McpError(
+                  ErrorCode.InvalidParams,
+                  "创建问题参数验证失败，请检查必填字段（项目编号, 问题类型, 问题标题, 需求范围, 描述, 验收标准）和参数类型",
+                );
+              }
+              throw error;
             }
-            const response = await this.jiraApi.createIssue(args);
-            return {
-              content: [
-                { type: "text", text: JSON.stringify(response, null, 2) },
-              ],
-            };
           }
           case "update_issue": {
             if (

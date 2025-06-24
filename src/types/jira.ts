@@ -136,3 +136,185 @@ export interface EnvJiraCustomFields {
 
 // 组合类型
 export type EnvJiraConfig = JiraBaseConfig & EnvJiraCustomFields;
+
+// CreateIssue 相关的类型定义
+export interface CreateIssueParams {
+  // 必填字段
+  projectKey: string;
+  issueType: string;
+  summary: string;
+  requirementScope: string;
+  description: string;
+  acceptanceCriteria: string;
+  
+  // 可选字段
+  department?: string;
+  team?: string | string[];
+  fixVersions?: string[];
+  testType?: string;
+  storyPoints?: number;
+  functionPoints?: number;
+  duedate?: string;
+  priority?: string;
+  assignee?: string;
+  developers?: string[];
+  userInterface?: string;
+  plannedCompletionDate?: string;
+  
+  // 额外字段
+  fields?: Record<string, any>;
+}
+
+// JIRA API 字段类型定义
+export interface JiraIssueFields {
+  project: {
+    key: string;
+  };
+  issuetype: {
+    name: string;
+  };
+  summary: string;
+  description?: string;
+  duedate?: string;
+  priority?: {
+    name: string;
+  };
+  assignee?: {
+    name: string;
+  };
+  fixVersions?: Array<{
+    name: string;
+  }>;
+  [key: string]: any; // 允许自定义字段
+}
+
+// JIRA API 创建问题的请求体类型
+export interface CreateIssueRequest {
+  fields: JiraIssueFields;
+}
+
+// JIRA API 创建问题的响应类型
+export interface CreateIssueResponse {
+  id: string;
+  key: string;
+  self: string;
+}
+
+// 自定义字段值类型
+export interface CustomFieldValue {
+  value: string;
+}
+
+export interface CustomFieldArray {
+  name: string;
+}
+
+// 用于类型安全的字段映射
+export type CreateIssueFieldMapping = {
+  [K in keyof CreateIssueParams]: K extends 'projectKey' | 'issueType' | 'summary' | 'fields'
+    ? never
+    : K extends 'team' | 'developers' | 'fixVersions'
+    ? string[]
+    : K extends 'storyPoints' | 'functionPoints'
+    ? number
+    : string;
+};
+
+// 类型验证工具函数
+export function validateCreateIssueParams(params: any): params is CreateIssueParams {
+  // 验证必填字段
+  const requiredFields: (keyof CreateIssueParams)[] = [
+    'projectKey', 'issueType', 'summary', 'requirementScope', 
+    'description', 'acceptanceCriteria'
+  ];
+  
+  for (const field of requiredFields) {
+    if (!params[field] || typeof params[field] !== 'string') {
+      return false;
+    }
+  }
+  
+  // 验证可选字段类型
+  if (params.department !== undefined && typeof params.department !== 'string') {
+    return false;
+  }
+  
+  if (params.team !== undefined && !Array.isArray(params.team) && typeof params.team !== 'string') {
+    return false;
+  }
+  
+  if (params.fixVersions !== undefined && !Array.isArray(params.fixVersions)) {
+    return false;
+  }
+  
+  if (params.testType !== undefined && typeof params.testType !== 'string') {
+    return false;
+  }
+  
+  if (params.storyPoints !== undefined && typeof params.storyPoints !== 'number') {
+    return false;
+  }
+  
+  if (params.functionPoints !== undefined && typeof params.functionPoints !== 'number') {
+    return false;
+  }
+  
+  if (params.duedate !== undefined && typeof params.duedate !== 'string') {
+    return false;
+  }
+  
+  if (params.priority !== undefined && typeof params.priority !== 'string') {
+    return false;
+  }
+  
+  if (params.assignee !== undefined && typeof params.assignee !== 'string') {
+    return false;
+  }
+  
+  if (params.developers !== undefined && !Array.isArray(params.developers)) {
+    return false;
+  }
+  
+  if (params.userInterface !== undefined && typeof params.userInterface !== 'string') {
+    return false;
+  }
+  
+  if (params.plannedCompletionDate !== undefined && typeof params.plannedCompletionDate !== 'string') {
+    return false;
+  }
+  
+  if (params.fields !== undefined && typeof params.fields !== 'object') {
+    return false;
+  }
+  
+  return true;
+}
+
+// 类型转换工具函数
+export function transformToCreateIssueParams(args: any): CreateIssueParams {
+  if (!validateCreateIssueParams(args)) {
+    throw new Error('Invalid parameters for createIssue');
+  }
+  
+  return {
+    projectKey: args.projectKey,
+    issueType: args.issueType,
+    summary: args.summary,
+    requirementScope: args.requirementScope,
+    description: args.description,
+    acceptanceCriteria: args.acceptanceCriteria,
+    department: args.department,
+    team: args.team,
+    fixVersions: args.fixVersions,
+    testType: args.testType,
+    storyPoints: args.storyPoints,
+    functionPoints: args.functionPoints,
+    duedate: args.duedate,
+    priority: args.priority,
+    assignee: args.assignee,
+    developers: args.developers,
+    userInterface: args.userInterface,
+    plannedCompletionDate: args.plannedCompletionDate,
+    fields: args.fields,
+  };
+}
