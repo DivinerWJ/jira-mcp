@@ -146,7 +146,7 @@ export interface CreateIssueParams {
   requirementScope: string;
   description: string;
   acceptanceCriteria: string;
-  
+
   // 可选字段
   department?: string;
   team?: string | string[];
@@ -160,7 +160,7 @@ export interface CreateIssueParams {
   developers?: string[];
   userInterface?: string;
   plannedCompletionDate?: string;
-  
+
   // 额外字段
   fields?: Record<string, any>;
 }
@@ -171,7 +171,8 @@ export interface JiraIssueFields {
     key: string;
   };
   issuetype: {
-    name: string;
+    name?: string;
+    id?: string;
   };
   summary: string;
   description?: string;
@@ -211,91 +212,163 @@ export interface CustomFieldArray {
 
 // 用于类型安全的字段映射
 export type CreateIssueFieldMapping = {
-  [K in keyof CreateIssueParams]: K extends 'projectKey' | 'issueType' | 'summary' | 'fields'
+  [K in keyof CreateIssueParams]: K extends
+    | "projectKey"
+    | "issueType"
+    | "summary"
+    | "fields"
     ? never
-    : K extends 'team' | 'developers' | 'fixVersions'
+    : K extends "team" | "developers" | "fixVersions"
     ? string[]
-    : K extends 'storyPoints' | 'functionPoints'
+    : K extends "storyPoints" | "functionPoints"
     ? number
     : string;
 };
 
 // 类型验证工具函数
-export function validateCreateIssueParams(params: any): params is CreateIssueParams {
+export function validateCreateIssueParams(params: any): {
+  isValid: boolean;
+  errors?: { field: keyof CreateIssueParams; reason: string }[];
+} {
+  const errors: { field: keyof CreateIssueParams; reason: string }[] = [];
+
   // 验证必填字段
   const requiredFields: (keyof CreateIssueParams)[] = [
-    'projectKey', 'issueType', 'summary', 'requirementScope', 
-    'description', 'acceptanceCriteria'
+    "projectKey",
+    "issueType",
+    "summary",
+    "requirementScope",
+    "description",
+    "acceptanceCriteria",
   ];
-  
+
   for (const field of requiredFields) {
-    if (!params[field] || typeof params[field] !== 'string') {
-      return false;
+    if (!params[field] || typeof params[field] !== "string") {
+      errors.push({
+        field,
+        reason: `必填字段 ${String(field)} 缺失或类型不是字符串`,
+      });
     }
   }
-  
+
   // 验证可选字段类型
-  if (params.department !== undefined && typeof params.department !== 'string') {
-    return false;
+  if (
+    params.department !== undefined &&
+    typeof params.department !== "string"
+  ) {
+    errors.push({
+      field: "department",
+      reason: "字段 department 类型必须是字符串",
+    });
   }
-  
-  if (params.team !== undefined && !Array.isArray(params.team) && typeof params.team !== 'string') {
-    return false;
+
+  if (
+    params.team !== undefined &&
+    !Array.isArray(params.team) &&
+    typeof params.team !== "string"
+  ) {
+    errors.push({ field: "team", reason: "字段 team 类型必须是数组或字符串" });
   }
-  
+
   if (params.fixVersions !== undefined && !Array.isArray(params.fixVersions)) {
-    return false;
+    errors.push({
+      field: "fixVersions",
+      reason: "字段 fixVersions 类型必须是数组",
+    });
   }
-  
-  if (params.testType !== undefined && typeof params.testType !== 'string') {
-    return false;
+
+  if (params.testType !== undefined && typeof params.testType !== "string") {
+    errors.push({
+      field: "testType",
+      reason: "字段 testType 类型必须是字符串",
+    });
   }
-  
-  if (params.storyPoints !== undefined && typeof params.storyPoints !== 'number') {
-    return false;
+
+  if (
+    params.storyPoints !== undefined &&
+    typeof params.storyPoints !== "number"
+  ) {
+    errors.push({
+      field: "storyPoints",
+      reason: "字段 storyPoints 类型必须是数字",
+    });
   }
-  
-  if (params.functionPoints !== undefined && typeof params.functionPoints !== 'number') {
-    return false;
+
+  if (
+    params.functionPoints !== undefined &&
+    typeof params.functionPoints !== "number"
+  ) {
+    errors.push({
+      field: "functionPoints",
+      reason: "字段 functionPoints 类型必须是数字",
+    });
   }
-  
-  if (params.duedate !== undefined && typeof params.duedate !== 'string') {
-    return false;
+
+  if (params.duedate !== undefined && typeof params.duedate !== "string") {
+    errors.push({ field: "duedate", reason: "字段 duedate 类型必须是字符串" });
   }
-  
-  if (params.priority !== undefined && typeof params.priority !== 'string') {
-    return false;
+
+  if (params.priority !== undefined && typeof params.priority !== "string") {
+    errors.push({
+      field: "priority",
+      reason: "字段 priority 类型必须是字符串",
+    });
   }
-  
-  if (params.assignee !== undefined && typeof params.assignee !== 'string') {
-    return false;
+
+  if (params.assignee !== undefined && typeof params.assignee !== "string") {
+    errors.push({
+      field: "assignee",
+      reason: "字段 assignee 类型必须是字符串",
+    });
   }
-  
+
   if (params.developers !== undefined && !Array.isArray(params.developers)) {
-    return false;
+    errors.push({
+      field: "developers",
+      reason: "字段 developers 类型必须是数组",
+    });
   }
-  
-  if (params.userInterface !== undefined && typeof params.userInterface !== 'string') {
-    return false;
+
+  if (
+    params.userInterface !== undefined &&
+    typeof params.userInterface !== "string"
+  ) {
+    errors.push({
+      field: "userInterface",
+      reason: "字段 userInterface 类型必须是字符串",
+    });
   }
-  
-  if (params.plannedCompletionDate !== undefined && typeof params.plannedCompletionDate !== 'string') {
-    return false;
+
+  if (
+    params.plannedCompletionDate !== undefined &&
+    typeof params.plannedCompletionDate !== "string"
+  ) {
+    errors.push({
+      field: "plannedCompletionDate",
+      reason: "字段 plannedCompletionDate 类型必须是字符串",
+    });
   }
-  
-  if (params.fields !== undefined && typeof params.fields !== 'object') {
-    return false;
+
+  if (params.fields !== undefined && typeof params.fields !== "object") {
+    errors.push({ field: "fields", reason: "字段 fields 类型必须是对象" });
   }
-  
-  return true;
+
+  return {
+    isValid: errors.length === 0,
+    ...(errors.length > 0 && { errors }),
+  };
 }
 
 // 类型转换工具函数
 export function transformToCreateIssueParams(args: any): CreateIssueParams {
-  if (!validateCreateIssueParams(args)) {
-    throw new Error('Invalid parameters for createIssue');
+  const validationResult = validateCreateIssueParams(args);
+  if (!validationResult.isValid) {
+    const errorMessages = validationResult.errors
+      ?.map((error) => `${error.field}: ${error.reason}`)
+      .join("; ");
+    throw new Error(`Invalid parameters for createIssue: ${errorMessages}`);
   }
-  
+
   return {
     projectKey: args.projectKey,
     issueType: args.issueType,

@@ -55,9 +55,9 @@ export class JiraApiService {
     level: "operation" | "success" | "error",
   ) {
     // 获取启动命令中的参数  判断是否是debug模式
-    const isDebug = process.argv.includes('--debug');
+    const isDebug = process.argv.includes("--debug");
     if (!this.sseTransport || !isDebug) {
-      return
+      return;
     }
 
     const now = new Date();
@@ -70,12 +70,18 @@ export class JiraApiService {
         messagePrefix = `${messagePrefix}操作失败`;
         break;
     }
-    console.debug(`${colorCode}[${formattedTime}] ${messagePrefix}:\n${JSON.stringify(data, null, 2)}${resetCode}`);
+    console.debug(
+      `${colorCode}[${formattedTime}] ${messagePrefix}:\n${JSON.stringify(
+        data,
+        null,
+        2,
+      )}${resetCode}`,
+    );
   }
 
   protected notifyApiOperation(operation: string, params: any) {
     if (this.server) {
-        this.logApiNotification(operation, params, "operation");
+      this.logApiNotification(operation, params, "operation");
       this.server.sendLoggingMessage({
         level: "debug",
         data: { operation, params },
@@ -622,6 +628,20 @@ export class JiraApiService {
       payload.fields[
         JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
       ] = fields.plannedCompletionDate;
+    }
+
+    // 从接口获取issueType名称所对应的issueTypeId，避免翻译问题导致问题名称无法匹配
+    const projectsMeta = await this.fetchJson<any>(
+      `/rest/api/3/issue/createmeta?projectKeys=${fields.projectKey}`,
+    );
+    if (projectsMeta.projects && projectsMeta.projects[0]) {
+      const issueTypeId = projectsMeta.projects[0].issuetypes.find(
+        (issueType: any) => issueType.name === fields.issueType,
+      )?.id;
+
+      payload.fields.issuetype = {
+        id: issueTypeId,
+      };
     }
 
     // 发送操作开始通知

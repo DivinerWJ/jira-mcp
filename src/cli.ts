@@ -10,11 +10,14 @@ import {
 import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
 
-import { JiraBaseConfig, EnvJiraConfig, CreateIssueParams, transformToCreateIssueParams } from "./types/jira.ts";
-
+import {
+  JiraBaseConfig,
+  EnvJiraConfig,
+  transformToCreateIssueParams,
+} from "./types/jira.ts";
 
 declare module "bun" {
-  interface Env extends EnvJiraConfig { }
+  interface Env extends EnvJiraConfig {}
 }
 
 export class JiraServer {
@@ -30,7 +33,7 @@ export class JiraServer {
       JIRA_BASE_URL: process.env.JIRA_BASE_URL,
       JIRA_USERNAME: process.env.JIRA_USERNAME,
       JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
-      JIRA_TYPE: process.env.JIRA_TYPE || 'server',
+      JIRA_TYPE: process.env.JIRA_TYPE || "server",
     };
     // console.log(`Jira API 初始化: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
 
@@ -66,7 +69,7 @@ export class JiraServer {
 
     this.setupToolHandlers();
 
-    this.server.onerror = (error) => { };
+    this.server.onerror = (error) => {};
     process.on("SIGINT", async () => {
       await this.server.close();
       process.exit(0);
@@ -105,7 +108,7 @@ export class JiraServer {
               searchString: {
                 type: "string",
                 description: "JQL 搜索字符串",
-              }
+              },
             },
             required: ["searchString"],
             additionalProperties: false,
@@ -113,15 +116,14 @@ export class JiraServer {
         },
         {
           name: "get_epic_children",
-          description:
-            "通过史诗问题的键获取所有子问题（包括评论）",
+          description: "通过史诗问题的键获取所有子问题（包括评论）",
           inputSchema: {
             type: "object",
             properties: {
               epicKey: {
                 type: "string",
                 description: "史诗问题的键",
-              }
+              },
             },
             required: ["epicKey"],
             additionalProperties: false,
@@ -129,135 +131,126 @@ export class JiraServer {
         },
         {
           name: "get_issue",
-          description:
-            "通过问题的键或ID获取详细信息（包括评论）",
+          description: "通过问题的键或ID获取详细信息（包括评论）",
           inputSchema: {
             type: "object",
             properties: {
               issueId: {
                 type: "string",
                 description: "JIRA 问题的 ID 或键",
-              }
+              },
             },
             required: ["issueId"],
             additionalProperties: false,
           },
           outputSchema: {
-            type: "object"
-          }
+            type: "object",
+          },
         },
         {
-          name: "create_issue",
-          description: "通过项目键、问题类型和摘要创建新问题",
+          name: "create_issues",
+          description: "批量创建多个Jira问题（支持单个或多个）",
           inputSchema: {
             type: "object",
             properties: {
-              projectKey: {
-                type: "string",
-                description: "问题将被创建的项目键",
-              },
-              issueType: {
-                type: "string",
-                description: "要创建的问题类型的id（例如：'缺陷的id：10010'、'故事的id：10001'、'子任务的id：10002'）",
-              },
-              summary: {
-                type: "string",
-                description: "问题摘要/标题",
-              },
-              department: {
-                type: "string",
-                description: "问题的部门名称",
-              },
-              team: {
+              issues: {
                 type: "array",
-                description: "问题的团队",
+                description: "每个元素为单个issue的参数对象",
                 items: {
-                  type: "string",
-                  description: "问题的团队",
+                  type: "object",
+                  properties: {
+                    projectKey: {
+                      type: "string",
+                      description: "问题将被创建的项目键",
+                    },
+                    issueType: {
+                      type: "string",
+                      description: "要创建的问题类型名称",
+                    },
+                    summary: { type: "string", description: "问题摘要/标题" },
+                    department: {
+                      type: "string",
+                      description: "问题的部门名称",
+                    },
+                    team: {
+                      type: "array",
+                      description: "问题的团队",
+                      items: { type: "string", description: "问题的团队" },
+                    },
+                    requirementScope: {
+                      type: "string",
+                      description: "问题的需求范围名称",
+                    },
+                    description: { type: "string", description: "问题描述" },
+                    acceptanceCriteria: {
+                      type: "string",
+                      description: "问题的验收标准",
+                    },
+                    fixVersions: {
+                      type: "array",
+                      description: "问题所属版本",
+                      items: {
+                        type: "string",
+                        description: "问题所属版本名称",
+                      },
+                    },
+                    testType: {
+                      type: "string",
+                      description: "问题的测试类型名称",
+                    },
+                    storyPoints: {
+                      type: "number",
+                      description: "问题的故事点数",
+                    },
+                    functionPoints: {
+                      type: "number",
+                      description: "问题的功能点数",
+                    },
+                    duedate: {
+                      type: "string",
+                      description: "问题到期日，如果为空则与计划完成日期相同",
+                    },
+                    priority: { type: "string", description: "问题优先级" },
+                    assignee: {
+                      type: "string",
+                      description: "经办人的名称，同开发人员相同",
+                    },
+                    developers: {
+                      type: "array",
+                      description: "问题的开发人员",
+                      items: {
+                        type: "string",
+                        description: "问题的开发人员的名称，创建时默认是经办人",
+                      },
+                    },
+                    userInterface: {
+                      type: "string",
+                      description: "问题是否包含用户可操作页面",
+                    },
+                    plannedCompletionDate: {
+                      type: "string",
+                      description:
+                        "问题的计划开发完成日期，如果为空则与到期日相同",
+                    },
+                    fields: {
+                      type: "object",
+                      description: "要在问题上设置的额外字段",
+                      additionalProperties: true,
+                    },
+                  },
+                  required: [
+                    "projectKey",
+                    "issueType",
+                    "summary",
+                    "requirementScope",
+                    "description",
+                    "acceptanceCriteria",
+                  ],
+                  additionalProperties: false,
                 },
-              },
-              requirementScope: {
-                type: "string",
-                description: "问题的需求范围名称",
-              },
-              description: {
-                type: "string",
-                description: "问题描述",
-              },
-              acceptanceCriteria: {
-                type: "string",
-                description: "问题的验收标准",
-              },
-              fixVersions: {
-                type: "array",
-                description: "问题所属版本",
-                items: {
-                  type: "string",
-                  description: "问题所属版本名称",
-                },
-              },
-              testType: {
-                type: "string",
-                description: "问题的测试类型名称",
-              },
-              storyPoints: {
-                type: "number",
-                description: "问题的故事点数",
-              },
-              functionPoints: {
-                type: "number",
-                description: "问题的功能点数",
-              },
-              duedate: {
-                type: "string",
-                description: "问题到期日",
-              },
-              priority: {
-                type: "string",
-                description: "问题优先级",
-              },
-              assignee: {
-                type: "string",
-                description: "经办人的名称，同开发人员相同",
-              },
-              developers: {
-                type: "array",
-                description: "问题的开发人员",
-                items: {
-                  type: "string",
-                  description: "问题的开发人员的名称，创建时默认是经办人",
-                }
-              },
-              userInterface: {
-                type: "string",
-                description: "问题是否包含用户可操作页面",
-              },
-              plannedCompletionDate: {
-                type: "string",
-                description: "问题的计划开发完成日期",
-              },
-              // issuelinks: {
-              //   type: "array",
-              //   description: "链接的问题",
-              //   items: {
-              //     type: "object",
-              //     properties: {
-              //       id: {
-              //         type: "string",
-              //         description: "链接的问题的ID",
-              //       },
-              //     },
-              //     required: ["id"],
-              //     additionalProperties: false,
-              //   },
-              // },
-              fields: {
-                type: "object",
-                description: "要在问题上设置的额外字段",
-                additionalProperties: true,
               },
             },
-            required: ["projectKey", "issueType", "summary", "requirementScope", "description", "acceptanceCriteria"],
+            required: ["issues"],
             additionalProperties: false,
           },
         },
@@ -277,7 +270,6 @@ export class JiraServer {
                 description: "要在问题上更新的字段",
                 additionalProperties: true,
                 properties: {
-
                   summary: {
                     type: "string",
                     description: "要更新的问题摘要/标题",
@@ -368,11 +360,11 @@ export class JiraServer {
                         name: {
                           type: "string",
                           description: "要更新的开发人员的名称",
-                        }
+                        },
                       },
                       required: ["name"],
                       additionalProperties: false,
-                    }
+                    },
                   },
                   userInterface: {
                     type: "object",
@@ -407,7 +399,7 @@ export class JiraServer {
                   //   },
                   // },
                 },
-              }
+              },
             },
             required: ["issueKey", "fields"],
             additionalProperties: false,
@@ -422,7 +414,7 @@ export class JiraServer {
               issueKey: {
                 type: "string",
                 description: "要获取转换的问题的键",
-              }
+              },
             },
             required: ["issueKey"],
             additionalProperties: false,
@@ -430,8 +422,7 @@ export class JiraServer {
         },
         {
           name: "transition_issue",
-          description:
-            "通过问题的键执行状态转换（包括评论）",
+          description: "通过问题的键执行状态转换（包括评论）",
           inputSchema: {
             type: "object",
             properties: {
@@ -446,7 +437,7 @@ export class JiraServer {
               comment: {
                 type: "string",
                 description: "状态转换时可选添加的评论",
-              }
+              },
             },
             required: ["issueKey", "transitionId"],
             additionalProperties: false,
@@ -469,7 +460,7 @@ export class JiraServer {
               filename: {
                 type: "string",
                 description: "要附加的文件的名称",
-              }
+              },
             },
             required: ["issueKey", "fileContent", "filename"],
             additionalProperties: false,
@@ -488,7 +479,7 @@ export class JiraServer {
               body: {
                 type: "string",
                 description: "评论的内容（纯文本）",
-              }
+              },
             },
             required: ["issueIdOrKey", "body"],
             additionalProperties: false,
@@ -546,26 +537,35 @@ export class JiraServer {
               ],
             };
           }
-          case "create_issue": {
-            try {
-              // 使用类型验证工具函数进行参数验证和转换
-              const createIssueParams = transformToCreateIssueParams(args);
-              
-              const response = await this.jiraApi.createIssue(createIssueParams);
-              return {
-                content: [
-                  { type: "text", text: JSON.stringify(response, null, 2) },
-                ],
-              };
-            } catch (error) {
-              if (error instanceof Error && error.message === 'Invalid parameters for createIssue') {
-                throw new McpError(
-                  ErrorCode.InvalidParams,
-                  "创建问题参数验证失败，请检查必填字段（项目编号, 问题类型, 问题标题, 需求范围, 描述, 验收标准）和参数类型",
-                );
-              }
-              throw error;
+          case "create_issues": {
+            if (!Array.isArray(args.issues)) {
+              throw new McpError(ErrorCode.InvalidParams, "issues 必须为数组");
             }
+            const results = [];
+            for (const issueArgs of args.issues) {
+              try {
+                const params = transformToCreateIssueParams(issueArgs);
+                const res = await this.jiraApi.createIssue(params);
+                results.push({ success: true, result: res });
+              } catch (e) {
+                results.push({
+                  success: false,
+                  error: e instanceof Error ? e.message : String(e),
+                });
+              }
+            }
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    { count: results.length, results },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
           }
           case "update_issue": {
             if (
@@ -630,7 +630,11 @@ export class JiraServer {
                   type: "text",
                   text: JSON.stringify(
                     {
-                      message: `Issue ${args.issueKey} transitioned successfully${args.comment ? " with comment" : ""}`,
+                      message: `Issue ${
+                        args.issueKey
+                      } transitioned successfully${
+                        args.comment ? " with comment" : ""
+                      }`,
                     },
                     null,
                     2,
