@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { JiraServer } from "./cli.ts";
 
 const server = new JiraServer();

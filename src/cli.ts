@@ -9,6 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
+import { logger } from "./utils/logger.js";
 
 import {
   JiraBaseConfig,
@@ -34,8 +35,19 @@ export class JiraServer {
       JIRA_USERNAME: process.env.JIRA_USERNAME,
       JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
       JIRA_TYPE: process.env.JIRA_TYPE || "server",
+      JIRA_LOG_DIR: process.env.JIRA_LOG_DIR,
+      JIRA_LOG_LEVEL:
+        (process.env.JIRA_LOG_LEVEL as "DEBUG" | "INFO" | "WARN" | "ERROR") ||
+        "INFO",
     };
-    // console.log(`Jira API 初始化: ${this.jiraConfig.JIRA_BASE_URL} (${this.jiraConfig.JIRA_USERNAME})`);
+
+    logger.info("JIRA MCP Server 初始化开始", {
+      baseUrl: this.jiraConfig.JIRA_BASE_URL,
+      username: this.jiraConfig.JIRA_USERNAME,
+      type: this.jiraConfig.JIRA_TYPE,
+      logDir: this.jiraConfig.JIRA_LOG_DIR,
+      logLevel: this.jiraConfig.JIRA_LOG_LEVEL,
+    });
 
     this.server = new Server(
       {
@@ -56,12 +68,14 @@ export class JiraServer {
         this.jiraConfig.JIRA_USERNAME,
         this.jiraConfig.JIRA_API_TOKEN,
       );
+      logger.info("使用 JIRA Server API 服务");
     } else {
       this.jiraApi = new JiraApiService(
         this.jiraConfig.JIRA_BASE_URL,
         this.jiraConfig.JIRA_USERNAME,
         this.jiraConfig.JIRA_API_TOKEN,
       );
+      logger.info("使用 JIRA Cloud API 服务");
     }
 
     // 将server实例传递给jiraApi
@@ -69,11 +83,18 @@ export class JiraServer {
 
     this.setupToolHandlers();
 
-    this.server.onerror = (error) => {};
+    this.server.onerror = (error) => {
+      logger.error("MCP Server 错误", error);
+    };
+
     process.on("SIGINT", async () => {
+      logger.info("收到 SIGINT 信号，正在关闭服务器...");
       await this.server.close();
+      logger.info("服务器已关闭");
       process.exit(0);
     });
+
+    logger.info("JIRA MCP Server 初始化完成");
   }
 
   protected setJiraConfig(config: JiraBaseConfig): JiraBaseConfig {
@@ -489,10 +510,15 @@ export class JiraServer {
     }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      try {
-        const args = request.params.arguments as Record<string, any>;
+      const toolName = request.params.name;
+      const args = request.params.arguments as Record<string, any>;
 
-        switch (request.params.name) {
+      logger.info(`开始处理工具调用: ${toolName}`, { arguments: args });
+
+      try {
+        let response;
+
+        switch (toolName) {
           case "search_issues": {
             if (!args.searchString || typeof args.searchString !== "string") {
               throw new McpError(
@@ -500,7 +526,8 @@ export class JiraServer {
                 "Search string is required",
               );
             }
-            const response = await this.jiraApi.searchIssues(args.searchString);
+            response = await this.jiraApi.searchIssues(args.searchString);
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },
@@ -514,7 +541,8 @@ export class JiraServer {
                 "Epic key is required",
               );
             }
-            const response = await this.jiraApi.getEpicChildren(args.epicKey);
+            response = await this.jiraApi.getEpicChildren(args.epicKey);
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },
@@ -528,9 +556,8 @@ export class JiraServer {
                 "Issue ID is required",
               );
             }
-            const response = await this.jiraApi.getIssueWithComments(
-              args.issueId,
-            );
+            response = await this.jiraApi.getIssueWithComments(args.issueId);
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },
@@ -554,15 +581,13 @@ export class JiraServer {
                 });
               }
             }
+            response = { count: results.length, results };
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    { count: results.length, results },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify(response, null, 2),
                 },
               ],
             };
@@ -580,15 +605,15 @@ export class JiraServer {
               );
             }
             await this.jiraApi.updateIssue(args.issueKey, args.fields);
+            response = {
+              message: `Issue ${args.issueKey} updated successfully`,
+            };
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    { message: `Issue ${args.issueKey} updated successfully` },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify(response, null, 2),
                 },
               ],
             };
@@ -600,7 +625,8 @@ export class JiraServer {
                 "Issue key is required",
               );
             }
-            const response = await this.jiraApi.getTransitions(args.issueKey);
+            response = await this.jiraApi.getTransitions(args.issueKey);
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },
@@ -624,21 +650,17 @@ export class JiraServer {
               args.transitionId,
               args.comment as string | undefined,
             );
+            response = {
+              message: `Issue ${args.issueKey} transitioned successfully${
+                args.comment ? " with comment" : ""
+              }`,
+            };
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    {
-                      message: `Issue ${
-                        args.issueKey
-                      } transitioned successfully${
-                        args.comment ? " with comment" : ""
-                      }`,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify(response, null, 2),
                 },
               ],
             };
@@ -663,19 +685,17 @@ export class JiraServer {
               fileBuffer,
               args.filename,
             );
+            response = {
+              message: `File ${args.filename} attached successfully to issue ${args.issueKey}`,
+              attachmentId: result.id,
+              filename: result.filename,
+            };
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    {
-                      message: `File ${args.filename} attached successfully to issue ${args.issueKey}`,
-                      attachmentId: result.id,
-                      filename: result.filename,
-                    },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify(response, null, 2),
                 },
               ],
             };
@@ -692,10 +712,11 @@ export class JiraServer {
                 "issueIdOrKey and body are required",
               );
             }
-            const response = await this.jiraApi.addCommentToIssue(
+            response = await this.jiraApi.addCommentToIssue(
               args.issueIdOrKey,
               args.body,
             );
+            logger.logToolCall(toolName, args, response);
             return {
               content: [
                 { type: "text", text: JSON.stringify(response, null, 2) },
@@ -705,10 +726,12 @@ export class JiraServer {
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
-              `Unknown tool: ${request.params.name}`,
+              `Unknown tool: ${toolName}`,
             );
         }
       } catch (error) {
+        logger.logToolCall(toolName, args, undefined, error as Error);
+
         // Keep generic error handling
         if (error instanceof McpError) {
           throw error;
@@ -727,9 +750,9 @@ export class JiraServer {
   }
 
   async run() {
-    // console.log('🔌 Using stdio transport');
+    logger.info("启动 JIRA MCP Server...");
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    // JIRA MCP server running on stdio
+    logger.info("JIRA MCP Server 已启动，使用 stdio 传输");
   }
 }

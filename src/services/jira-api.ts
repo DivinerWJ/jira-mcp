@@ -12,12 +12,54 @@ import {
   CustomFieldValue,
   CustomFieldArray,
 } from "../types/jira.js";
+import { logger } from "../utils/logger.js";
 
 export class JiraApiService {
   protected baseUrl: string;
   protected headers: Headers;
   protected server?: any; // MCP Server实例
   protected sseTransport?: any; // SSE Transport实例
+
+  // 日志通知方法（上移，确保所有方法都能访问到）
+  protected notifyApiOperation(operation: string, params: any) {
+    if (this.server) {
+      this.server.sendLoggingMessage({
+        level: "debug",
+        data: { operation, params },
+        logger: "JIRA-API",
+      });
+    }
+    logger.info(`JIRA API 操作: ${operation}`, params);
+  }
+
+  protected notifyApiSuccess(operation: string, result: any) {
+    if (this.server) {
+      this.server.sendLoggingMessage({
+        level: "debug",
+        data: { operation, result },
+        logger: "JIRA-API",
+      });
+    }
+    logger.info(`JIRA API 成功: ${operation}`, result);
+  }
+
+  protected notifyApiError(operation: string, error: any) {
+    if (this.server) {
+      this.server.sendLoggingMessage({
+        level: "error",
+        data: {
+          message: `${operation}操作失败`,
+          error: error?.toString?.() || String(error),
+        },
+        logger: "JIRA-API",
+      });
+    }
+    logger.error(
+      `JIRA API 错误: ${operation}`,
+      error instanceof Error ? error : undefined,
+      error,
+    );
+  }
 
   // 定义可配置字段及对应缺省值
   private static readonly CUSTOM_FIELD: EnvJiraCustomFields = {
@@ -48,73 +90,6 @@ export class JiraApiService {
     this.sseTransport = transport;
   }
 
-  // 通知相关方法
-  private logApiNotification(
-    operation: string,
-    data: any,
-    level: "operation" | "success" | "error",
-  ) {
-    // 获取启动命令中的参数  判断是否是debug模式
-    const isDebug = process.argv.includes("--debug");
-    if (!this.sseTransport || !isDebug) {
-      return;
-    }
-
-    const now = new Date();
-    const formattedTime = now.toLocaleString();
-    const colorCode = "\x1b[36m";
-    const resetCode = "\x1b[0m";
-    let messagePrefix = operation;
-    switch (level) {
-      case "error":
-        messagePrefix = `${messagePrefix}操作失败`;
-        break;
-    }
-    console.debug(
-      `${colorCode}[${formattedTime}] ${messagePrefix}:\n${JSON.stringify(
-        data,
-        null,
-        2,
-      )}${resetCode}`,
-    );
-  }
-
-  protected notifyApiOperation(operation: string, params: any) {
-    if (this.server) {
-      this.logApiNotification(operation, params, "operation");
-      this.server.sendLoggingMessage({
-        level: "debug",
-        data: { operation, params },
-        logger: "JIRA-API",
-      });
-    }
-  }
-
-  protected notifyApiSuccess(operation: string, result: any) {
-    if (this.server) {
-      this.logApiNotification(operation, result, "success");
-      this.server.sendLoggingMessage({
-        level: "debug",
-        data: { operation, result },
-        logger: "JIRA-API",
-      });
-    }
-  }
-
-  protected notifyApiError(operation: string, error: any) {
-    if (this.server) {
-      this.logApiNotification(operation, error, "error");
-      this.server.sendLoggingMessage({
-        level: "error",
-        data: {
-          message: `${operation}操作失败`,
-          error: error.toString(),
-        },
-        logger: "JIRA-API",
-      });
-    }
-  }
-
   constructor(baseUrl: string, username: string, apiToken: string) {
     this.baseUrl = baseUrl;
     const auth = Buffer.from(`${username}:${apiToken}`).toString("base64");
@@ -122,6 +97,11 @@ export class JiraApiService {
       Authorization: `Basic ${auth}`,
       Accept: "application/json",
       "Content-Type": "application/json",
+    });
+
+    logger.info("JIRA API 服务初始化", {
+      baseUrl: this.baseUrl,
+      username: username,
     });
   }
 
@@ -331,24 +311,48 @@ export class JiraApiService {
   }
 
   protected async fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(this.baseUrl + url, {
-      ...init,
-      headers: this.headers,
+    const fullUrl = this.baseUrl + url;
+    logger.debug("JIRA API 请求", {
+      url: fullUrl,
+      method: init?.method || "GET",
+      headers: Object.fromEntries(this.headers.entries()),
     });
-    const responseBody = await response.json();
 
-    if (!response.ok) {
-      try {
-        await this.handleFetchError(response, responseBody, url);
-      } catch (e: any) {
-        //TODO handle the exception
-        console.error("Fetch Error Details:", e.message);
-        console.error("Request Body:", init);
-        console.error("Response Body:", responseBody);
+    try {
+      const response = await fetch(fullUrl, {
+        ...init,
+        headers: this.headers,
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        logger.error(
+          "JIRA API 请求失败",
+          new Error(`HTTP ${response.status}: ${response.statusText}`),
+          {
+            url: fullUrl,
+            status: response.status,
+            statusText: response.statusText,
+            responseData: data,
+          },
+        );
+        await this.handleFetchError(response, data, url);
       }
-    }
 
-    return responseBody;
+      logger.debug("JIRA API 请求成功", {
+        url: fullUrl,
+        status: response.status,
+        dataSize: JSON.stringify(data).length,
+      });
+
+      return data;
+    } catch (error) {
+      logger.error("JIRA API 请求异常", error as Error, {
+        url: fullUrl,
+        method: init?.method || "GET",
+      });
+      throw error;
+    }
   }
 
   async searchIssues(searchString: string): Promise<SearchIssuesResponse> {
@@ -373,27 +377,42 @@ export class JiraApiService {
         expand: "names,renderedFields",
       });
 
-      // 发送操作开始通知
       this.notifyApiOperation("搜索问题-start", {
         query: params.toString(),
         queryObject: Object.fromEntries(params),
       });
 
-      const data = await this.fetchJson<any>(`/rest/api/3/search?${params}`);
+      const response = await this.fetchJson<{
+        total: number;
+        issues: any[];
+      }>(`/rest/api/3/search?${params}`);
 
-      // 发送操作成功通知
       this.notifyApiSuccess("搜索问题-success", {
-        total: data.total,
-        issuesCount: data.issues.length,
+        total: response.total,
+        issuesCount: response.issues.length,
       });
 
+      logger.logApiCall(
+        "searchIssues",
+        { searchString },
+        {
+          total: response.total,
+          issuesCount: response.issues.length,
+        },
+      );
+
       return {
-        total: data.total,
-        issues: data.issues.map((issue: any) => this.cleanIssue(issue)),
+        total: response.total,
+        issues: response.issues.map((issue) => this.cleanIssue(issue)),
       };
     } catch (error) {
-      // 发送操作失败通知
       this.notifyApiError("搜索问题-error", error);
+      logger.logApiCall(
+        "searchIssues",
+        { searchString },
+        undefined,
+        error as Error,
+      );
       console.error("Error searching issues:", error);
       throw error;
     }
@@ -571,7 +590,8 @@ export class JiraApiService {
     }
 
     if (fields.acceptanceCriteria) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = fields.acceptanceCriteria
+      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] =
+        fields.acceptanceCriteria;
     }
 
     if (fields.fixVersions && Array.isArray(fields.fixVersions)) {

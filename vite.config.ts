@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import dts from "vite-plugin-dts";
+// import dts from "vite-plugin-dts";
 import { resolve } from "path";
 import { terser } from "rollup-plugin-terser";
 
@@ -12,15 +12,17 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
+        "fs",
+        "path",
         "@modelcontextprotocol/sdk/server/index.js",
         "@modelcontextprotocol/sdk/server/stdio.js",
         "@modelcontextprotocol/sdk/types.js",
       ],
-      plugins: [terser()]
+      plugins: [terser()],
     },
     target: "node18",
     outDir: "build",
     sourcemap: true,
   },
-  plugins: [dts()],
+  // plugins: [dts()],
 });

@@ -109,6 +109,10 @@ export interface JiraBaseConfig {
   JIRA_USERNAME: string;
   /** Jira类型: server (默认) 或 cloud (例如: server) */
   JIRA_TYPE: "server" | "cloud";
+  /** 日志目录路径 (例如: /path/to/logs) */
+  JIRA_LOG_DIR?: string;
+  /** 日志级别: DEBUG, INFO, WARN, ERROR (例如: INFO) */
+  JIRA_LOG_LEVEL?: "DEBUG" | "INFO" | "WARN" | "ERROR";
 }
 
 export interface EnvJiraCustomFields {

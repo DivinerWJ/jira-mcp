@@ -12,8 +12,8 @@ A Model Context Protocol (MCP) server implementation that provides access to JIR
 
 This MCP server supports both **Jira Cloud** and **Jira Server (Data Center)** instances. You can select which type to use by setting the `JIRA_TYPE` environment variable:
 
-- `cloud` (default): For Jira Cloud (Atlassian-hosted)
-- `server`: For Jira Server/Data Center (self-hosted)
+- `cloud`: For Jira Cloud (Atlassian-hosted)
+- `server (default)`: For Jira Server/Data Center (self-hosted)
 
 The server will automatically use the correct API version and authentication method for the selected type.
 
@@ -43,7 +43,7 @@ The server will automatically use the correct API version and authentication met
 JIRA_API_TOKEN=your_api_token
 JIRA_BASE_URL=your_jira_instance_url  # e.g., https://your-domain.atlassian.net
 JIRA_USERNAME=your_username # or your email
-JIRA_TYPE=cloud   # or 'server' for Jira Server/Data Center (optional, defaults to 'cloud')
+JIRA_TYPE=server   # Jira Server/Data Center, or 'cloud' for Jira Cloud (optional, defaults to 'server')
 ```
 
 ## Installation & Setup
