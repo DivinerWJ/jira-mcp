@@ -571,9 +571,7 @@ export class JiraApiService {
     }
 
     if (fields.acceptanceCriteria) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = {
-        value: fields.acceptanceCriteria,
-      } as CustomFieldValue;
+      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] = fields.acceptanceCriteria
     }
 
     if (fields.fixVersions && Array.isArray(fields.fixVersions)) {

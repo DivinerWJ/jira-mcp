@@ -16,9 +16,13 @@
   },
   "hide-files.files": [],
   "cSpell.words": [
+    "createmeta",
     "customfield",
     "duedate",
     "issuelinks",
-    "issuetype"
-  ]
+    "issuetype",
+    "issuetypes"
+  ],
+  "files.autoSave": "afterDelay",
+  "editor.formatOnSave": true
 }

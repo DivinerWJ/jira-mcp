@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 import { resolve } from "path";
+import { terser } from "rollup-plugin-terser";
 
 export default defineConfig({
   build: {
@@ -15,6 +16,7 @@ export default defineConfig({
         "@modelcontextprotocol/sdk/server/stdio.js",
         "@modelcontextprotocol/sdk/types.js",
       ],
+      plugins: [terser()]
     },
     target: "node18",
     outDir: "build",
