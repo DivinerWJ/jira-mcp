@@ -180,6 +180,32 @@ Input Schema:
 }
 ```
 
+### get_transitions
+
+Get all available transitions for a JIRA issue.
+
+Input Schema:
+
+```typescript
+{
+  issueKey: string, // The key of the issue to get transitions for
+}
+```
+
+### transition_issue
+
+Transition one or multiple JIRA issues to a new status.
+
+Input Schema:
+
+```typescript
+{
+  issueKeys: string[], // Array of issue keys to transition (single element array for one issue)
+  transitionId: string, // The ID of the transition to perform
+  comment?: string // Optional comment to add during the transition (added to all issues)
+}
+```
+
 ### update_issue
 
 Update fields of an existing JIRA issue.

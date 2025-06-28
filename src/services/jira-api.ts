@@ -323,7 +323,10 @@ export class JiraApiService {
         ...init,
         headers: this.headers,
       });
-      const data = await response.json();
+      let data = null;
+      try {
+        data = await response?.json();
+      } catch (err) {}
 
       if (!response.ok) {
         logger.error(
@@ -833,5 +836,34 @@ export class JiraApiService {
       updated: response.updated,
       body: this.extractTextContent(response.body.content),
     };
+  }
+
+  /**
+   * 批量对多个问题执行相同的状态转换
+   * @param issueKeys 要执行状态转换的问题键数组
+   * @param transitionId 要执行的转换ID
+   * @param comment 可选的评论（将添加到每个问题）
+   * @returns 包含成功和失败信息的结果
+   */
+  async batchTransitionIssues(
+    issueKeys: string[],
+    transitionId: string,
+    comment?: string,
+  ): Promise<void> {
+    // 发送操作开始通知
+    this.notifyApiOperation("批量状态转换-开始", {
+      issueKeys,
+      transitionId,
+      commentProvided: !!comment,
+    });
+
+    for (const issueKey of issueKeys) {
+      await this.transitionIssue(issueKey, transitionId, comment);
+    }
+
+    // 发送操作成功通知
+    this.notifyApiSuccess("批量状态转换-完成", {
+      total: issueKeys.length,
+    });
   }
 }

@@ -443,13 +443,14 @@ export class JiraServer {
         },
         {
           name: "transition_issue",
-          description: "通过问题的键执行状态转换（包括评论）",
+          description: "对一个或多个问题执行状态转换（包括评论）",
           inputSchema: {
             type: "object",
             properties: {
-              issueKey: {
-                type: "string",
-                description: "要进行状态转换的问题的键",
+              issueKeys: {
+                type: "array",
+                items: { type: "string" },
+                description: "要进行状态转换的问题键数组",
               },
               transitionId: {
                 type: "string",
@@ -457,7 +458,7 @@ export class JiraServer {
               },
               comment: {
                 type: "string",
-                description: "状态转换时可选添加的评论",
+                description: "状态转换时可选添加的评论（将添加到每个问题）",
               },
             },
             required: ["issueKey", "transitionId"],
@@ -635,32 +636,32 @@ export class JiraServer {
           }
           case "transition_issue": {
             if (
-              !args.issueKey ||
-              typeof args.issueKey !== "string" ||
+              !args.issueKeys ||
+              !Array.isArray(args.issueKeys) ||
               !args.transitionId ||
               typeof args.transitionId !== "string"
             ) {
               throw new McpError(
                 ErrorCode.InvalidParams,
-                "issueKey and transitionId are required",
+                "issueKey array and transitionId are required",
               );
             }
-            await this.jiraApi.transitionIssue(
-              args.issueKey,
+
+            // 统一使用批量处理方法
+            await this.jiraApi.batchTransitionIssues(
+              args.issueKeys,
               args.transitionId,
               args.comment as string | undefined,
             );
-            response = {
-              message: `Issue ${args.issueKey} transitioned successfully${
-                args.comment ? " with comment" : ""
-              }`,
-            };
-            logger.logToolCall(toolName, args, response);
+
+            logger.logToolCall(toolName, args);
             return {
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(response, null, 2),
+                  text: `Issues ${args.issueKeys.join(
+                    ", ",
+                  )} transitioned successfully`,
                 },
               ],
             };
