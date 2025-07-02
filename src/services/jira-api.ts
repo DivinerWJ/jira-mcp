@@ -98,11 +98,6 @@ export class JiraApiService {
       Accept: "application/json",
       "Content-Type": "application/json",
     });
-
-    logger.info("JIRA API 服务初始化", {
-      baseUrl: this.baseUrl,
-      username: username,
-    });
   }
 
   protected async handleFetchError(
@@ -381,6 +376,7 @@ export class JiraApiService {
       });
 
       this.notifyApiOperation("搜索问题-start", {
+        jql: searchString,
         query: params.toString(),
         queryObject: Object.fromEntries(params),
       });
@@ -552,6 +548,99 @@ export class JiraApiService {
     return issue;
   }
 
+  /**
+   * 转换字段到 JIRA API 格式的公共方法
+   * @param fields 输入字段
+   * @param targetFields 目标字段对象
+   */
+  private transformFieldsToJiraFormat(
+    fields: Record<string, any>,
+    targetFields: Record<string, any>,
+  ): void {
+    // 处理自定义字段转换
+    if (fields.department) {
+      targetFields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = {
+        value: fields.department,
+      } as CustomFieldValue;
+    }
+
+    if (fields.team) {
+      if (Array.isArray(fields.team)) {
+        targetFields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = fields.team;
+      } else {
+        targetFields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = [fields.team];
+      }
+    }
+
+    if (fields.requirementScope) {
+      targetFields[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD] = {
+        value: fields.requirementScope,
+      } as CustomFieldValue;
+    }
+
+    if (fields.description) {
+      targetFields.description = fields.description;
+    }
+
+    if (fields.acceptanceCriteria) {
+      targetFields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] =
+        fields.acceptanceCriteria;
+    }
+
+    if (fields.fixVersions && Array.isArray(fields.fixVersions)) {
+      targetFields.fixVersions = fields.fixVersions.map(
+        (version: string) =>
+          ({
+            name: version,
+          } as CustomFieldArray),
+      );
+    }
+
+    if (fields.testType) {
+      targetFields[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD] = {
+        value: fields.testType,
+      } as CustomFieldValue;
+    }
+
+    if (typeof fields.storyPoints === "number") {
+      targetFields[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD] =
+        fields.storyPoints;
+    }
+
+    if (typeof fields.functionPoints === "number") {
+      targetFields[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD] =
+        fields.functionPoints;
+    }
+
+    if (fields.duedate) {
+      targetFields.duedate = fields.duedate;
+    }
+
+    if (fields.priority) {
+      targetFields.priority = { name: fields.priority };
+    }
+
+    if (fields.assignee) {
+      targetFields.assignee = { name: fields.assignee };
+    }
+
+    if (fields.developers && Array.isArray(fields.developers)) {
+      targetFields[JiraApiService.CUSTOM_FIELD.DEVELOPERS_FIELD] =
+        fields.developers.map((developer: string) => ({ name: developer }));
+    }
+
+    if (fields.userInterface) {
+      targetFields[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD] = {
+        value: fields.userInterface,
+      } as CustomFieldValue;
+    }
+
+    if (fields.plannedCompletionDate) {
+      targetFields[JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD] =
+        fields.plannedCompletionDate;
+    }
+  }
+
   async createIssue(params: CreateIssueParams): Promise<CreateIssueResponse> {
     const { fields: extraFields, ...fields } = params;
     const payload: CreateIssueRequest = {
@@ -567,102 +656,24 @@ export class JiraApiService {
       },
     };
 
-    // 类型安全的字段映射
-    if (fields.department) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.DEPARTMENT_FIELD] = {
-        value: fields.department,
-      } as CustomFieldValue;
-    }
+    // 使用公共方法转换字段
+    this.transformFieldsToJiraFormat(fields, payload.fields);
 
-    if (fields.team) {
-      if (Array.isArray(fields.team)) {
-        payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = fields.team;
-      } else {
-        payload.fields[JiraApiService.CUSTOM_FIELD.TEAM_FIELD] = [fields.team];
-      }
-    }
-
-    if (fields.requirementScope) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.REQUIREMENT_SCOPE_FIELD] = {
-        value: fields.requirementScope,
-      } as CustomFieldValue;
-    }
-
-    if (fields.description) {
-      payload.fields.description = fields.description;
-    }
-
-    if (fields.acceptanceCriteria) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.ACCEPTANCE_CRITERIA_FIELD] =
-        fields.acceptanceCriteria;
-    }
-
-    if (fields.fixVersions && Array.isArray(fields.fixVersions)) {
-      payload.fields.fixVersions = fields.fixVersions.map(
-        (version: string) =>
-          ({
-            name: version,
-          } as CustomFieldArray),
+    // 判断issueType是否是英文名称，不是英文则去接口查对应 id
+    if (!/^[a-zA-Z0-9]+$/.test(fields.issueType)) {
+      // 从接口获取issueType名称所对应的issueTypeId，避免翻译问题导致问题名称无法匹配
+      const projectsMeta = await this.fetchJson<any>(
+        `/rest/api/3/issue/createmeta?projectKeys=${fields.projectKey}`,
       );
-    }
+      if (projectsMeta.projects && projectsMeta.projects[0]) {
+        const issueTypeId = projectsMeta.projects[0].issuetypes.find(
+          (issueType: any) => issueType.name === fields.issueType,
+        )?.id;
 
-    if (fields.testType) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.TEST_TYPE_FIELD] = {
-        value: fields.testType,
-      } as CustomFieldValue;
-    }
-
-    if (typeof fields.storyPoints === "number") {
-      payload.fields[JiraApiService.CUSTOM_FIELD.STORY_POINTS_FIELD] =
-        fields.storyPoints;
-    }
-
-    if (typeof fields.functionPoints === "number") {
-      payload.fields[JiraApiService.CUSTOM_FIELD.FUNCTION_POINTS_FIELD] =
-        fields.functionPoints;
-    }
-
-    if (fields.duedate) {
-      payload.fields.duedate = fields.duedate;
-    }
-
-    if (fields.priority) {
-      payload.fields.priority = { name: fields.priority };
-    }
-
-    if (fields.assignee) {
-      payload.fields.assignee = { name: fields.assignee };
-    }
-
-    if (fields.developers && Array.isArray(fields.developers)) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.DEVELOPERS_FIELD] =
-        fields.developers.map((developer: string) => ({ name: developer }));
-    }
-
-    if (fields.userInterface) {
-      payload.fields[JiraApiService.CUSTOM_FIELD.USER_INTERFACE_FIELD] = {
-        value: fields.userInterface,
-      } as CustomFieldValue;
-    }
-
-    if (fields.plannedCompletionDate) {
-      payload.fields[
-        JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
-      ] = fields.plannedCompletionDate;
-    }
-
-    // 从接口获取issueType名称所对应的issueTypeId，避免翻译问题导致问题名称无法匹配
-    const projectsMeta = await this.fetchJson<any>(
-      `/rest/api/3/issue/createmeta?projectKeys=${fields.projectKey}`,
-    );
-    if (projectsMeta.projects && projectsMeta.projects[0]) {
-      const issueTypeId = projectsMeta.projects[0].issuetypes.find(
-        (issueType: any) => issueType.name === fields.issueType,
-      )?.id;
-
-      payload.fields.issuetype = {
-        id: issueTypeId,
-      };
+        payload.fields.issuetype = {
+          id: issueTypeId,
+        };
+      }
     }
 
     // 发送操作开始通知
@@ -684,13 +695,16 @@ export class JiraApiService {
       // 发送操作开始通知
       this.notifyApiOperation("更新问题", { issueKey, fields });
 
-      const body = {
-        fields,
+      const payload: any = {
+        fields: {},
       };
+
+      // 使用公共方法转换字段
+      this.transformFieldsToJiraFormat(fields, payload.fields);
 
       await this.fetchJson<void>(`/rest/api/3/issue/${issueKey}`, {
         method: "PUT",
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
 
       // 发送操作成功通知

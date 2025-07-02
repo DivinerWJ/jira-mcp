@@ -8,6 +8,7 @@ import {
   unlinkSync,
 } from "fs";
 import { join, dirname } from "path";
+import { getSimpleVersionInfo } from "./version.js";
 
 export enum LogLevel {
   DEBUG = "DEBUG",
@@ -56,7 +57,8 @@ export class Logger {
         // 写入日志文件头部（如果文件不存在）
         if (this.logFilePath && !existsSync(this.logFilePath)) {
           const now = new Date();
-          const header = `=== JIRA MCP Server Log ===\nStarted at: ${now.toISOString()}\nLog Level: ${
+          const versionInfo = getSimpleVersionInfo();
+          const header = `=== JIRA MCP Server v${versionInfo.version} Log ===\nStarted at: ${now.toISOString()}\nVersion: ${versionInfo.version}\nMCP Server Version: ${versionInfo.mcpServerVersion}\nLog Level: ${
             process.env.JIRA_LOG_LEVEL || "INFO"
           }\nEnvironment: ${
             process.env.NODE_ENV || "production"
@@ -144,7 +146,8 @@ export class Logger {
       // 如果文件不存在，写入头部
       if (!existsSync(this.logFilePath)) {
         const now = new Date();
-        const header = `=== JIRA MCP Server Log ===\nStarted at: ${now.toISOString()}\nLog Level: ${
+        const versionInfo = getSimpleVersionInfo();
+        const header = `=== JIRA MCP Server v${versionInfo.version} Log ===\nStarted at: ${now.toISOString()}\nVersion: ${versionInfo.version}\nMCP Server Version: ${versionInfo.mcpServerVersion}\nLog Level: ${
           process.env.JIRA_LOG_LEVEL || "INFO"
         }\nEnvironment: ${
           process.env.NODE_ENV || "production"

@@ -10,6 +10,7 @@ import {
 import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
 import { logger } from "./utils/logger.js";
+import { getVersionInfo } from "./utils/version.js";
 
 import {
   JiraBaseConfig,
@@ -27,8 +28,12 @@ export class JiraServer {
 
   private jiraConfig: JiraBaseConfig;
   protected sseTransport: any = null;
+  private versionInfo: ReturnType<typeof getVersionInfo>;
 
   constructor() {
+    // 读取版本信息
+    this.versionInfo = getVersionInfo();
+
     // 使用环境变量重载工具获取最新配置
     this.jiraConfig = {
       JIRA_BASE_URL: process.env.JIRA_BASE_URL,
@@ -41,7 +46,9 @@ export class JiraServer {
         "INFO",
     };
 
-    logger.info("JIRA MCP Server 初始化开始", {
+    logger.info(`JIRA MCP Server v${this.versionInfo.version} 初始化开始`, {
+      version: this.versionInfo.version,
+      mcpServerVersion: this.versionInfo.mcpServerVersion,
       baseUrl: this.jiraConfig.JIRA_BASE_URL,
       username: this.jiraConfig.JIRA_USERNAME,
       type: this.jiraConfig.JIRA_TYPE,
@@ -52,7 +59,7 @@ export class JiraServer {
     this.server = new Server(
       {
         name: "jira-mcp",
-        version: "0.2.0",
+        version: this.versionInfo.mcpServerVersion,
       },
       {
         capabilities: {
@@ -68,15 +75,18 @@ export class JiraServer {
         this.jiraConfig.JIRA_USERNAME,
         this.jiraConfig.JIRA_API_TOKEN,
       );
-      logger.info("使用 JIRA Server API 服务");
     } else {
       this.jiraApi = new JiraApiService(
         this.jiraConfig.JIRA_BASE_URL,
         this.jiraConfig.JIRA_USERNAME,
         this.jiraConfig.JIRA_API_TOKEN,
       );
-      logger.info("使用 JIRA Cloud API 服务");
     }
+    logger.info(
+      `使用 JIRA API 服务类型: ${
+        this.jiraConfig.JIRA_TYPE === "server" ? "Server" : "Cloud"
+      }`,
+    );
 
     // 将server实例传递给jiraApi
     this.jiraApi.setServer(this.server);
@@ -94,7 +104,7 @@ export class JiraServer {
       process.exit(0);
     });
 
-    logger.info("JIRA MCP Server 初始化完成");
+    logger.info(`JIRA MCP Server v${this.versionInfo.version} 初始化完成`);
   }
 
   protected setJiraConfig(config: JiraBaseConfig): JiraBaseConfig {
@@ -128,7 +138,8 @@ export class JiraServer {
             properties: {
               searchString: {
                 type: "string",
-                description: "JQL 搜索字符串",
+                description:
+                  "JQL 搜索字符串。注意：在JQL中使用问题类型时，必须使用英文名称（如：Story、Task、Bug等），不支持中文问题类型名称。",
               },
             },
             required: ["searchString"],
@@ -186,7 +197,8 @@ export class JiraServer {
                     },
                     issueType: {
                       type: "string",
-                      description: "要创建的问题类型名称",
+                      description:
+                        "要创建的问题类型名称（必须使用英文名称，如：Story、Task、Bug等，不支持中文问题类型名称）",
                     },
                     summary: { type: "string", description: "问题摘要/标题" },
                     department: {
@@ -308,16 +320,8 @@ export class JiraServer {
                     },
                   },
                   requirementScope: {
-                    type: "object",
-                    description: "要更新的需求范围",
-                    properties: {
-                      name: {
-                        type: "string",
-                        description: "要更新的需求范围名称",
-                      },
-                    },
-                    required: ["name"],
-                    additionalProperties: false,
+                    type: "string",
+                    description: "要更新的需求范围名称",
                   },
                   description: {
                     type: "string",
@@ -331,18 +335,14 @@ export class JiraServer {
                   fixVersions: {
                     type: "array",
                     description: "要更新的问题所属版本",
+                    items: {
+                      type: "string",
+                      description: "要更新的问题所属版本名称",
+                    },
                   },
                   testType: {
-                    type: "object",
-                    description: "要更新的测试类型",
-                    properties: {
-                      name: {
-                        type: "string",
-                        description: "要更新的测试类型名称",
-                      },
-                    },
-                    required: ["name"],
-                    additionalProperties: false,
+                    type: "string",
+                    description: "要更新的测试类型名称",
                   },
                   storyPoints: {
                     type: "number",
@@ -361,43 +361,20 @@ export class JiraServer {
                     description: "要更新的问题优先级",
                   },
                   assignee: {
-                    type: "object",
-                    description: "要更新的问题经办人",
-                    properties: {
-                      name: {
-                        type: "string",
-                        description: "要更新的经办人的名称",
-                      },
-                    },
-                    required: ["name"],
-                    additionalProperties: false,
+                    type: "string",
+                    description: "要更新的经办人的名称",
                   },
                   developers: {
                     type: "array",
                     description: "要更新的开发人员",
                     items: {
-                      type: "object",
-                      properties: {
-                        name: {
-                          type: "string",
-                          description: "要更新的开发人员的名称",
-                        },
-                      },
-                      required: ["name"],
-                      additionalProperties: false,
+                      type: "string",
+                      description: "要更新的开发人员的名称",
                     },
                   },
                   userInterface: {
-                    type: "object",
+                    type: "string",
                     description: "要更新的用户界面",
-                    properties: {
-                      value: {
-                        type: "string",
-                        description: "要更新的用户界面",
-                      },
-                    },
-                    required: ["value"],
-                    additionalProperties: false,
                   },
                   plannedCompletionDate: {
                     type: "string",
@@ -504,6 +481,15 @@ export class JiraServer {
               },
             },
             required: ["issueIdOrKey", "body"],
+            additionalProperties: false,
+          },
+        },
+        {
+          name: "get_version",
+          description: "获取当前 MCP 工具的版本信息",
+          inputSchema: {
+            type: "object",
+            properties: {},
             additionalProperties: false,
           },
         },
@@ -724,6 +710,26 @@ export class JiraServer {
               ],
             };
           }
+          case "get_version": {
+            // 使用统一的版本获取函数
+            try {
+              response = getVersionInfo();
+              logger.logToolCall(toolName, args, response);
+              return {
+                content: [
+                  { type: "text", text: JSON.stringify(response, null, 2) },
+                ],
+              };
+            } catch (error) {
+              // 如果读取失败，抛出错误
+              throw new McpError(
+                ErrorCode.InternalError,
+                `无法读取版本信息: ${
+                  error instanceof Error ? error.message : "Unknown error"
+                }`,
+              );
+            }
+          }
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -751,9 +757,11 @@ export class JiraServer {
   }
 
   async run() {
-    logger.info("启动 JIRA MCP Server...");
+    logger.info(`启动 JIRA MCP Server v${this.versionInfo.version}...`);
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    logger.info("JIRA MCP Server 已启动，使用 stdio 传输");
+    logger.info(
+      `JIRA MCP Server v${this.versionInfo.version} 已启动，使用 stdio 传输`,
+    );
   }
 }
