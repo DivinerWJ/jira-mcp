@@ -78,6 +78,7 @@ export class JiraApiService {
       process.env.USER_INTERFACE_FIELD || "customfield_13901",
     PLANNED_COMPLETION_DATE_FIELD:
       process.env.PLANNED_COMPLETION_DATE_FIELD || "customfield_13632",
+    SPRINT_FIELD: process.env.SPRINT_FIELD || "customfield_10001",
   };
 
   // 设置Server实例的方法
@@ -522,6 +523,8 @@ export class JiraApiService {
       issueData.fields?.[
         JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
       ];
+    issue.sprint =
+      issueData.fields?.[JiraApiService.CUSTOM_FIELD.SPRINT_FIELD];
 
     const comments = commentsData.comments.map((comment: any) =>
       this.cleanComment(comment),
@@ -638,6 +641,12 @@ export class JiraApiService {
     if (fields.plannedCompletionDate) {
       targetFields[JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD] =
         fields.plannedCompletionDate;
+    }
+
+    if (fields.sprint) {
+      targetFields[JiraApiService.CUSTOM_FIELD.SPRINT_FIELD] = {
+        name: fields.sprint,
+      } as CustomFieldArray;
     }
   }
 

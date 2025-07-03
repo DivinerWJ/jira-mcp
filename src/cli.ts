@@ -243,7 +243,11 @@ export class JiraServer {
                       type: "string",
                       description: "问题到期日，如果为空则与计划完成日期相同",
                     },
-                    priority: { type: "string", description: "问题优先级" },
+                    priority: {
+                      type: "string",
+                      description:
+                        "问题优先级（必须使用中文优先级名称，如：低、中、高）",
+                    },
                     assignee: {
                       type: "string",
                       description: "经办人的名称，同开发人员相同",
@@ -258,12 +262,18 @@ export class JiraServer {
                     },
                     userInterface: {
                       type: "string",
-                      description: "问题是否包含用户可操作页面",
+                      description:
+                        "问题是否包含用户可操作页面（必须使用中文名称，如：是、否、无）",
                     },
                     plannedCompletionDate: {
                       type: "string",
                       description:
                         "问题的计划开发完成日期，如果为空则与到期日相同",
+                    },
+                    sprint: {
+                      type: "string",
+                      description:
+                        "问题所属的Sprint名称（必须使用 Sprint 的名称）",
                     },
                     fields: {
                       type: "object",
@@ -358,7 +368,8 @@ export class JiraServer {
                   },
                   priority: {
                     type: "string",
-                    description: "要更新的问题优先级",
+                    description:
+                      "要更新的问题优先级（必须使用中文优先级名称，如：低、中、高）",
                   },
                   assignee: {
                     type: "string",
@@ -374,11 +385,17 @@ export class JiraServer {
                   },
                   userInterface: {
                     type: "string",
-                    description: "要更新的用户界面",
+                    description:
+                      "要更新的是否包含用户可操作页面（必须使用中文名称，如：是、否、无）",
                   },
                   plannedCompletionDate: {
                     type: "string",
                     description: "要更新的计划开发完成日期",
+                  },
+                  sprint: {
+                    type: "string",
+                    description:
+                      "问题所属的Sprint名称（必须使用 Sprint 的名称）",
                   },
                   // // TODO: 目前无法批量add Server有限制，没法像Cloud一样批量add
                   // issuelinks: {

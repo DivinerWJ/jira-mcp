@@ -29,6 +29,7 @@ export interface CleanJiraIssue {
   developers?: string[];
   userInterface?: string;
   plannedCompletionDate?: string;
+  sprint?: string;
   // issuelinks?: string[];
   comments?: CleanComment[];
   parent?: {
@@ -136,6 +137,8 @@ export interface EnvJiraCustomFields {
   USER_INTERFACE_FIELD: string;
   /** 计划开发完成日期自定义字段ID (例如: customfield_13632) */
   PLANNED_COMPLETION_DATE_FIELD: string;
+  /** Sprint自定义字段ID (例如: customfield_10001) */
+  SPRINT_FIELD: string;
 }
 
 // 组合类型
