@@ -167,6 +167,7 @@ export interface CreateIssueParams {
   developers?: string[];
   userInterface?: string;
   plannedCompletionDate?: string;
+  originalEstimate?: string; // 原预估时间，格式如：Xw, Xd, Xh, Xm
 
   // 额外字段
   fields?: Record<string, any>;
@@ -239,15 +240,28 @@ export function validateCreateIssueParams(params: any): {
 } {
   const errors: { field: keyof CreateIssueParams; reason: string }[] = [];
 
+  // 检查是否是子任务
+  const isSubtask = params.issueType && (
+    params.issueType.toLowerCase().includes("subtask") ||
+    params.issueType.toLowerCase().includes("子任务")
+  );
+
   // 验证必填字段
+  // 对于子任务，只有projectKey、issueType和summary是必填的
   const requiredFields: (keyof CreateIssueParams)[] = [
     "projectKey",
     "issueType",
     "summary",
-    "requirementScope",
-    "description",
-    "acceptanceCriteria",
   ];
+  
+  // 非子任务需要额外的必填字段
+  if (!isSubtask) {
+    requiredFields.push(
+      "requirementScope",
+      "description",
+      "acceptanceCriteria"
+    );
+  }
 
   for (const field of requiredFields) {
     if (!params[field] || typeof params[field] !== "string") {
@@ -356,6 +370,16 @@ export function validateCreateIssueParams(params: any): {
     });
   }
 
+  if (
+    params.originalEstimate !== undefined &&
+    typeof params.originalEstimate !== "string"
+  ) {
+    errors.push({
+      field: "originalEstimate",
+      reason: "字段 originalEstimate 类型必须是字符串",
+    });
+  }
+
   if (params.fields !== undefined && typeof params.fields !== "object") {
     errors.push({ field: "fields", reason: "字段 fields 类型必须是对象" });
   }
@@ -395,6 +419,7 @@ export function transformToCreateIssueParams(args: any): CreateIssueParams {
     developers: args.developers,
     userInterface: args.userInterface,
     plannedCompletionDate: args.plannedCompletionDate,
+    originalEstimate: args.originalEstimate,
     fields: args.fields,
   };
 }

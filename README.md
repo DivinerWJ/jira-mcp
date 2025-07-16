@@ -162,21 +162,53 @@ Input Schema:
 }
 ```
 
-### create_issue
+### create_issues
 
-Create a new JIRA issue with specified fields.
+Create one or more JIRA issues with specified fields.
+
+**Note:** For regular issue types (like Story, Task, Bug, etc.), the required fields are `projectKey`, `issueType`, `summary`, `requirementScope`, `description`, and `acceptanceCriteria`. For subtask issue types, only `projectKey`, `issueType`, and `summary` are required, all other fields are optional.
 
 Input Schema:
 
 ```typescript
 {
-  projectKey: string, // The project key where the issue will be created
-  issueType: string, // The type of issue (e.g., "Bug", "Story", "Task")
-  summary: string, // The issue summary/title
-  description?: string, // Optional issue description
-  fields?: { // Optional additional fields
-    [key: string]: any
-  }
+  issues: [
+    {
+      // Regular issue example (all required fields)
+      projectKey: string, // The project key where the issue will be created
+      issueType: string, // The type of issue (e.g., "Bug", "Story", "Task")
+      summary: string, // The issue summary/title
+      requirementScope: string, // The requirement scope
+      description: string, // Issue description
+      acceptanceCriteria: string, // Acceptance criteria
+      department?: string, // Optional department
+      team?: string | string[], // Optional team(s)
+      fixVersions?: string[], // Optional fix versions
+      testType?: string, // Optional test type
+      storyPoints?: number, // Optional story points
+      functionPoints?: number, // Optional function points
+      duedate?: string, // Optional due date
+      priority?: string, // Optional priority
+      assignee?: string, // Optional assignee
+      developers?: string[], // Optional developers
+      userInterface?: string, // Optional user interface
+      plannedCompletionDate?: string, // Optional planned completion date
+      sprint?: string, // Optional sprint
+      fields?: { // Optional additional fields
+        [key: string]: any
+      }
+    },
+    {
+      // Subtask example (only required fields + parent)
+      projectKey: string, // The project key where the issue will be created
+      issueType: string, // Must be a subtask type
+      summary: string, // The subtask summary/title
+      parent: string, // Parent issue key
+      originalEstimate?: string, // Optional original estimate time (e.g., "2d 4h", "1w", "8h")
+      assignee?: string, // Optional assignee
+      // All other fields are optional for subtasks
+    }
+  ]
 }
 ```
 

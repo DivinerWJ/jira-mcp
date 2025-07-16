@@ -523,8 +523,7 @@ export class JiraApiService {
       issueData.fields?.[
         JiraApiService.CUSTOM_FIELD.PLANNED_COMPLETION_DATE_FIELD
       ];
-    issue.sprint =
-      issueData.fields?.[JiraApiService.CUSTOM_FIELD.SPRINT_FIELD];
+    issue.sprint = issueData.fields?.[JiraApiService.CUSTOM_FIELD.SPRINT_FIELD];
 
     const comments = commentsData.comments.map((comment: any) =>
       this.cleanComment(comment),
@@ -647,6 +646,10 @@ export class JiraApiService {
       targetFields[JiraApiService.CUSTOM_FIELD.SPRINT_FIELD] = {
         name: fields.sprint,
       } as CustomFieldArray;
+    }
+
+    if (fields.originalEstimate) {
+      targetFields.timetracking = { originalEstimate: fields.originalEstimate };
     }
   }
 

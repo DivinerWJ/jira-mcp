@@ -193,12 +193,13 @@ export class JiraServer {
                   properties: {
                     projectKey: {
                       type: "string",
-                      description: "问题将被创建的项目键",
+                      description:
+                        "问题将被创建的项目键，当创建子任务类型时，该字段值是问题编号短横线分割后的第一部分，如：PROJECT-123，PROJECT",
                     },
                     issueType: {
                       type: "string",
                       description:
-                        "要创建的问题类型名称（必须使用英文名称，如：Story、Task、Bug等，不支持中文问题类型名称）",
+                        "要创建的问题类型名称（非subtask必须使用英文名称，如：Story、Task、Bug等，不支持中文问题类型名称；如果是subtask则使用用户要求的名称，如：开发子任务、子任务、测试子任务等）",
                     },
                     summary: { type: "string", description: "问题摘要/标题" },
                     department: {
@@ -275,6 +276,15 @@ export class JiraServer {
                       description:
                         "问题所属的Sprint名称（必须使用 Sprint 的名称）",
                     },
+                    originalEstimate: {
+                      type: "string",
+                      description:
+                        "问题的原预估时间，格式如：Xw, Xd, Xh, Xm，分别表示周(w), 天(d), 小时(h)和分钟(m)，如果没有指定时间单位，默认为分钟",
+                    },
+                    parent: {
+                      type: "string",
+                      description: "子任务的父任务键，仅在创建子任务时使用",
+                    },
                     fields: {
                       type: "object",
                       description: "要在问题上设置的额外字段",
@@ -285,9 +295,6 @@ export class JiraServer {
                     "projectKey",
                     "issueType",
                     "summary",
-                    "requirementScope",
-                    "description",
-                    "acceptanceCriteria",
                   ],
                   additionalProperties: false,
                 },
@@ -396,6 +403,11 @@ export class JiraServer {
                     type: "string",
                     description:
                       "问题所属的Sprint名称（必须使用 Sprint 的名称）",
+                  },
+                  originalEstimate: {
+                    type: "string",
+                    description:
+                      "问题的原预估时间，格式如：Xw, Xd, Xh, Xm，分别表示周(w), 天(d), 小时(h)和分钟(m)，如果没有指定时间单位，默认为分钟",
                   },
                   // // TODO: 目前无法批量add Server有限制，没法像Cloud一样批量add
                   // issuelinks: {
@@ -576,6 +588,15 @@ export class JiraServer {
             for (const issueArgs of args.issues) {
               try {
                 const params = transformToCreateIssueParams(issueArgs);
+                // 如果是子任务类型且提供了parent字段，直接在fields中设置parent字段
+                const isSubtask =
+                  params.issueType.toLowerCase().includes("subtask") ||
+                  params.issueType.toLowerCase().includes("子任务");
+                
+                if (isSubtask && issueArgs.parent) {
+                  params.fields = params.fields || {};
+                  params.fields.parent = { key: issueArgs.parent };
+                }
                 const res = await this.jiraApi.createIssue(params);
                 results.push({ success: true, result: res });
               } catch (e) {
