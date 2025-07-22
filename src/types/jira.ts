@@ -110,6 +110,8 @@ export interface JiraBaseConfig {
   JIRA_USERNAME: string;
   /** Jira类型: server (默认) 或 cloud (例如: server) */
   JIRA_TYPE: "server" | "cloud";
+  /** Jira Basic Authentication值 (例如: Basic XXXXXXX) */
+  JIRA_BASIC_AUTH?: string;
   /** 日志目录路径 (例如: /path/to/logs) */
   JIRA_LOG_DIR?: string;
   /** 日志级别: DEBUG, INFO, WARN, ERROR (例如: INFO) */
@@ -241,10 +243,10 @@ export function validateCreateIssueParams(params: any): {
   const errors: { field: keyof CreateIssueParams; reason: string }[] = [];
 
   // 检查是否是子任务
-  const isSubtask = params.issueType && (
-    params.issueType.toLowerCase().includes("subtask") ||
-    params.issueType.toLowerCase().includes("子任务")
-  );
+  const isSubtask =
+    params.issueType &&
+    (params.issueType.toLowerCase().includes("subtask") ||
+      params.issueType.toLowerCase().includes("子任务"));
 
   // 验证必填字段
   // 对于子任务，只有projectKey、issueType和summary是必填的
@@ -253,13 +255,13 @@ export function validateCreateIssueParams(params: any): {
     "issueType",
     "summary",
   ];
-  
+
   // 非子任务需要额外的必填字段
   if (!isSubtask) {
     requiredFields.push(
       "requirementScope",
       "description",
-      "acceptanceCriteria"
+      "acceptanceCriteria",
     );
   }
 

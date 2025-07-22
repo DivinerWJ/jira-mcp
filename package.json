@@ -1,13 +1,13 @@
 {
   "name": "jira-mcp",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "JIRA MCP Server - Ready to use MCP server for JIRA integration",
   "type": "module",
   "scripts": {
     "init": "node generate-mcp-config.js",
     "build": "vite build && chmod +x build/index.js",
     "start": "bun build/index.js",
-    "inspector": "cross-env DANGEROUSLY_OMIT_AUTH=true npx -y @modelcontextprotocol/inspector --config ./mcp.json --server jira build/index.js",
+    "inspector": "cross-env DANGEROUSLY_OMIT_AUTH=true npx -y @modelcontextprotocol/inspector@0.16.0 --config ./mcp.json --server jira",
     "serve": "tsx --env-file=.env --watch src/server.ts ",
     "dev": "vite",
     "test": "bun test",

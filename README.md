@@ -40,11 +40,22 @@ The server will automatically use the correct API version and authentication met
 ## Environment Variables
 
 ```bash
+# 认证方式1：使用用户名和API令牌（传统方式）
 JIRA_API_TOKEN=your_api_token
 JIRA_BASE_URL=your_jira_instance_url  # e.g., https://your-domain.atlassian.net
 JIRA_USERNAME=your_username # or your email
+
+# 认证方式2：直接使用Basic Authentication值（优先使用）
+JIRA_BASIC_AUTH=your_base64_encoded_credentials  # 格式为 base64(username:password)，也兼容 Basic 前缀
+JIRA_BASE_URL=your_jira_instance_url
+
+# 其他配置
 JIRA_TYPE=server   # Jira Server/Data Center, or 'cloud' for Jira Cloud (optional, defaults to 'server')
 ```
+
+> 注意：
+> 1. 认证方式1和认证方式2可以选择其一配置，只需要确保至少有一种认证方式被正确配置。如果同时配置了两种方式，将优先使用认证方式2（JIRA_BASIC_AUTH）。
+> 2. `JIRA_BASIC_AUTH` 的值可以是纯 base64 编码的 `username:password`，也兼容带有 `Basic ` 前缀的格式。
 
 ## Installation & Setup
 

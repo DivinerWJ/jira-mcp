@@ -11,6 +11,7 @@ import { JiraApiService } from "./services/jira-api.js";
 import { JiraServerApiService } from "./services/jira-server-api.js";
 import { logger } from "./utils/logger.js";
 import { getVersionInfo } from "./utils/version.js";
+import { decodeBasicAuth } from "./utils/auth-utils.js";
 
 import {
   JiraBaseConfig,
@@ -33,12 +34,25 @@ export class JiraServer {
   constructor() {
     // 读取版本信息
     this.versionInfo = getVersionInfo();
+    let JIRA_USERNAME = process.env.JIRA_USERNAME;
+    let JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
+
+    // 添加认证信息到日志
+    if (process.env.JIRA_BASIC_AUTH) {
+      // 解码 basic auth 并赋值给 username 和 token
+      const { username, token } = decodeBasicAuth(
+        process.env.JIRA_BASIC_AUTH,
+      );
+      
+      JIRA_USERNAME = username;
+      JIRA_API_TOKEN = token;
+    }
 
     // 使用环境变量重载工具获取最新配置
     this.jiraConfig = {
       JIRA_BASE_URL: process.env.JIRA_BASE_URL,
-      JIRA_USERNAME: process.env.JIRA_USERNAME,
-      JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+      JIRA_USERNAME: JIRA_USERNAME,
+      JIRA_API_TOKEN: JIRA_API_TOKEN,
       JIRA_TYPE: process.env.JIRA_TYPE || "server",
       JIRA_LOG_DIR: process.env.JIRA_LOG_DIR,
       JIRA_LOG_LEVEL:
@@ -46,7 +60,8 @@ export class JiraServer {
         "INFO",
     };
 
-    logger.info(`JIRA MCP Server v${this.versionInfo.version} 初始化开始`, {
+    // 根据认证方式选择不同的日志输出
+    const logData = {
       version: this.versionInfo.version,
       mcpServerVersion: this.versionInfo.mcpServerVersion,
       baseUrl: this.jiraConfig.JIRA_BASE_URL,
@@ -54,7 +69,12 @@ export class JiraServer {
       type: this.jiraConfig.JIRA_TYPE,
       logDir: this.jiraConfig.JIRA_LOG_DIR,
       logLevel: this.jiraConfig.JIRA_LOG_LEVEL,
-    });
+    };
+
+    logger.info(
+      `JIRA MCP Server v${this.versionInfo.version} 初始化开始`,
+      logData,
+    );
 
     this.server = new Server(
       {
