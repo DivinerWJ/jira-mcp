@@ -167,21 +167,6 @@ export class JiraServer {
           },
         },
         {
-          name: "get_epic_children",
-          description: "通过史诗问题的键获取所有子问题（包括评论）",
-          inputSchema: {
-            type: "object",
-            properties: {
-              epicKey: {
-                type: "string",
-                description: "史诗问题的键",
-              },
-            },
-            required: ["epicKey"],
-            additionalProperties: false,
-          },
-        },
-        {
           name: "get_issue",
           description: "通过问题的键或ID获取详细信息（包括评论）",
           inputSchema: {
@@ -311,11 +296,7 @@ export class JiraServer {
                       additionalProperties: true,
                     },
                   },
-                  required: [
-                    "projectKey",
-                    "issueType",
-                    "summary",
-                  ],
+                  required: ["projectKey", "issueType", "summary"],
                   additionalProperties: false,
                 },
               },
@@ -487,52 +468,67 @@ export class JiraServer {
                 description: "状态转换时可选添加的评论（将添加到每个问题）",
               },
             },
-            required: ["issueKey", "transitionId"],
+            required: ["issueKeys", "transitionId"],
             additionalProperties: false,
           },
         },
-        {
-          name: "add_attachment",
-          description: "通过问题的键添加文件附件",
-          inputSchema: {
-            type: "object",
-            properties: {
-              issueKey: {
-                type: "string",
-                description: "要添加附件的问题的键",
-              },
-              fileContent: {
-                type: "string",
-                description: "文件的 Base64 编码内容",
-              },
-              filename: {
-                type: "string",
-                description: "要附加的文件的名称",
-              },
-            },
-            required: ["issueKey", "fileContent", "filename"],
-            additionalProperties: false,
-          },
-        },
-        {
-          name: "add_comment",
-          description: "通过问题的键添加评论",
-          inputSchema: {
-            type: "object",
-            properties: {
-              issueIdOrKey: {
-                type: "string",
-                description: "要添加评论的问题的 ID 或键",
-              },
-              body: {
-                type: "string",
-                description: "评论的内容（纯文本）",
-              },
-            },
-            required: ["issueIdOrKey", "body"],
-            additionalProperties: false,
-          },
-        },
+        // {
+        //   name: "get_epic_children",
+        //   description: "通过史诗问题的键获取所有子问题（包括评论）",
+        //   inputSchema: {
+        //     type: "object",
+        //     properties: {
+        //       epicKey: {
+        //         type: "string",
+        //         description: "史诗问题的键",
+        //       },
+        //     },
+        //     required: ["epicKey"],
+        //     additionalProperties: false,
+        //   },
+        // },
+        // {
+        //   name: "add_attachment",
+        //   description: "通过问题的键添加文件附件",
+        //   inputSchema: {
+        //     type: "object",
+        //     properties: {
+        //       issueKey: {
+        //         type: "string",
+        //         description: "要添加附件的问题的键",
+        //       },
+        //       fileContent: {
+        //         type: "string",
+        //         description: "文件的 Base64 编码内容",
+        //       },
+        //       filename: {
+        //         type: "string",
+        //         description: "要附加的文件的名称",
+        //       },
+        //     },
+        //     required: ["issueKey", "fileContent", "filename"],
+        //     additionalProperties: false,
+        //   },
+        // },
+        // {
+        //   name: "add_comment",
+        //   description: "通过问题的键添加评论",
+        //   inputSchema: {
+        //     type: "object",
+        //     properties: {
+        //       issueIdOrKey: {
+        //         type: "string",
+        //         description: "要添加评论的问题的 ID 或键",
+        //       },
+        //       body: {
+        //         type: "string",
+        //         description: "评论的内容（纯文本）",
+        //       },
+        //     },
+        //     required: ["issueIdOrKey", "body"],
+        //     additionalProperties: false,
+        //   },
+        // },
         {
           name: "get_version",
           description: "获取当前 MCP 工具的版本信息",
@@ -612,7 +608,7 @@ export class JiraServer {
                 const isSubtask =
                   params.issueType.toLowerCase().includes("subtask") ||
                   params.issueType.toLowerCase().includes("子任务");
-                
+
                 if (isSubtask && issueArgs.parent) {
                   params.fields = params.fields || {};
                   params.fields.parent = { key: issueArgs.parent };
