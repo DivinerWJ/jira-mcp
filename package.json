@@ -1,6 +1,6 @@
 {
   "name": "jira-mcp",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "JIRA MCP Server - Ready to use MCP server for JIRA integration",
   "type": "module",
   "scripts": {
